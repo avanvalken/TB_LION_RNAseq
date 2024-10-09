@@ -4,27 +4,2097 @@ author: "avanvalken"
 date: "2024-10-02"
 output: html_document
 ---
-
 ```{r setup, include=FALSE}
+
+library(tidyverse)
+library("readxl")
+library(SummarizedExperiment)
+#library(singleCellTK)
+library(cowplot)
+library(patchwork)
+library(TBSignatureProfiler)
+library(umap)
+library(limma)
+library(ComplexHeatmap)
+library(DT)
+
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(results='hide')
+
+
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# Load Data {.tabset}
+```{r}
+se <- readRDS("data/tblion_se.RDS")
+df <- as.data.frame(colData(se))
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Explore the data {.tabset}
+
+## visit number, nutrition status, helminth status, male/female, AGE {.tabset}
+```{r}
+
+# Plot visit, color by nutrition status, then helminth status
+p1 <- ggplot(data=df, mapping=aes(x=visit, y=AGE, fill=nutrition)) +
+  geom_boxplot()
+
+
+p2 <- ggplot(data=df, mapping=aes(x=visit, y=AGE, fill=GENDER)) +
+  geom_boxplot()
+
+p3 <- ggplot(data=df, mapping=aes(x=visit, y=BMI, fill=HELMINTH)) +
+  geom_boxplot()
+
+p4 <- ggplot(data=df, mapping=aes(x=visit, y=BMI, fill=nutrition)) +
+  geom_boxplot()
+
+p5 <- ggplot(data=df, mapping=aes(x=visit, y=BMI, fill=GENDER)) +
+  geom_boxplot()
+
+
+p1 + p2 
+
+p3 + p4
+
+p5 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## visit number, nutrition status, helminth status, male/female, AGE {.tabset}
+```{r}
+
+# Plot visit, color by nutrition status, then helminth status
+p1 <- ggplot(data=df, mapping=aes(x=visit, y=AGE, fill=status)) +
+  geom_boxplot()
+
+
+
+
+p2 <- ggplot(data=df, mapping=aes(x=visit, y=BMI, fill=status)) +
+  geom_boxplot()
+
+
+
+
+p1 / p2 
+
+
+```
+
+
+
+# Analyze SE object for preliminary grant data {.tabset}
+```{r}
+# counts to cpm/log/log_counts_cpm
+
+# Want to have 5% present rate
+se <- se[apply(assay(se,"counts") != 0, 1, mean)>.2,] 
+
+# add assays (log2, counts_per_million, log_counts_cpm)
+se <- mkAssay(se, log=T)
+names(assays(se))
+
+indata <- se
+```
+## subset by visit 1 and visit 6 {.tabset}
+```{r}
+# should V7 be the same as V6?
+indata_v1 <- indata[,colData(indata)$visit=="Visit_1"] 
+indata_v1@colData@listData[["visit"]]
+
+indata_v6 <- indata[,colData(indata)$visit=="Visit_6"]
+indata_v6@colData@listData[["visit"]]
+```
+# Dimension Reduction Visit 1  {.tabset}
+
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction")
+#dir.create(path)
+path1 <- file.path(path, "visit_1")
+#dir.create(path1)
+# filter by time
+indata <- indata[,colData(indata)$visit=="Visit_1"] 
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+#indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = .5)
+g
+
+# #ggsave(file.path(path, "pca_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
+# g1 + g
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=Class, shape=Helminth, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+ggsave(file.path(path1, "umap_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
+
+g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g2)
+ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+# Differential Expression {.tabset}
+Create 4 heatmaps of filtered data. 2 heatmaps of data with confounding factors acounted for. One heatmap of well-nourished helminth absent vs all and see differences, determine if groups cluster together. Get pathway gene list of which makes the most sense. Actually, each group vs all. 
+
+## Helminth vs no Helminth, control for nutrition {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_1")
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) + factor(nutrition), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## Helminth vs no Helminth, mal-nourished only {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_1")
+
+indata.mal <- indata[,colData(indata)$nutrition=="mal"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.mal))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.mal, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k_helminthstatus_heatmap.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## Helminth vs no Helminth, well-nourished only {.tabset}
+```{r }
+path <- file.path("outs/differential_expression", "visit_1")
+
+indata.well <- indata[,colData(indata)$nutrition=="well"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.well))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.well, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k_helminthstatus_heatmap.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, control for helminth {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_1")
+
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition) + factor(HELMINTH) , data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata)$"nutrition", Helminths=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, helminth positive{.tabset}
+```{r }
+path <- file.path("outs/differential_expression")
+
+# select only helminth positive
+indata.pos <- indata[,colData(indata)$HELMINTH=="Present"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition), data=colData(indata.pos))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.pos, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata.pos)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata.pos[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata.pos)$"nutrition", Helminths=colData(indata.pos)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, helminth negative {.tabset}
+```{r }
+path <- file.path("outs/differential_expression")
+
+indata.neg <- indata[,colData(indata)$HELMINTH=="Absent"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition), data=colData(indata.neg))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.neg, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata.neg)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata.neg[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata.neg)$"nutrition", Helminths=colData(indata.neg)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+g
+#dev.off()
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+
+
+
+# Pathway analysis
+## IPA, MsigDB, EnrichR
+### send the list of differentially expressed genes to a database using any of these tools and get results
+
+
+# Gene set enrichment analysis {.tabset}
+## TBsignatureProfiler {.tabset}
+```{r, echo=F}
+signatureBoxplot=function (inputData, annotationData, signatureColNames, annotationColName, 
+                           name = "Signatures", scale = FALSE, violinPlot = FALSE, 
+                           includePoints = TRUE, notch = FALSE, rotateLabels = FALSE, 
+                           nrow = NULL, ncol = NULL, fill_colors = NULL) 
+{
+  if (methods::is(inputData, "SummarizedExperiment")) {
+    if (any(duplicated(signatureColNames))) {
+      stop("Duplicate signature column name is not supported.")
+    }
+    if (!all(signatureColNames %in% colnames(SummarizedExperiment::colData(inputData)))) {
+      stop("Signature column name not found in inputData.")
+    }
+    if (!all(annotationColName %in% colnames(SummarizedExperiment::colData(inputData)))) {
+      stop("Annotation column name not found in inputData.")
+    }
+    annotationData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+                                                                          annotationColName, drop = FALSE])
+    inputData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+                                                                     signatureColNames, drop = FALSE])
+  }
+  else {
+    if (ncol(annotationData) != 1) {
+      stop("annotationData must have only one column.")
+    }
+    annotationColName <- colnames(annotationData)
+  }
+  if (length(annotationColName) != 1) {
+    stop("You must specify a single annotation column name to color boxplots by.")
+  }
+  if (!is.factor(annotationData[, 1])) {
+    annotationData[, 1] <- as.factor(annotationData[, 1])
+  }
+  n <- length(levels(annotationData[, 1]))
+  if (n > 9) {
+    stop("Too many levels in the annotation data. The boxplot can contain a maximum of 9 levels")
+  }
+  if (nrow(annotationData) == nrow(inputData)) {
+    if (!all(rownames(annotationData) == rownames(inputData))) {
+      stop("Annotation data and signature data does not match.")
+    }
+  }
+  else if (nrow(annotationData) == ncol(inputData)) {
+    if (!all(rownames(annotationData) == colnames(inputData))) {
+      stop("Annotation data and signature data does not match.")
+    }
+    inputData <- t(inputData)
+  }
+  else {
+    stop("Annotation data and signature data does not match.")
+  }
+  pathwaydata <- t(inputData)
+  if (scale) {
+    pathwaydata <- t(scale(t(pathwaydata)))
+  }
+  boxplotdf <- data.frame(t(pathwaydata), Group = annotationData[, 
+                                                                 1])
+  boxplotdfm <- reshape2::melt(boxplotdf, value.name = "Score", 
+                               variable.name = "Signature", id.vars = "Group")
+  theplot <- ggplot2::ggplot(boxplotdfm, ggplot2::aes(Group, 
+                                                      Score)) + ggplot2::facet_wrap(~Signature, scales = "free", 
+                                                                                    nrow = nrow, ncol = ncol)
+  if (violinPlot) {
+    theplot <- theplot + ggplot2::geom_violin(ggplot2::aes(fill = Group)) + 
+      ggplot2::theme_classic()
+  }
+  else {
+    theplot <- theplot + ggplot2::geom_boxplot(outlier.shape = NA, 
+                                               ggplot2::aes(fill = Group), notch = notch) + 
+      ggplot2::theme_classic()
+  }
+  if (includePoints) {
+    theplot <- theplot + ggplot2::geom_point(position = ggplot2::position_jitter(width = 0.1))
+  }
+  if (rotateLabels) {
+    theplot <- theplot + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, 
+                                                                            hjust = 1))
+  }
+  if (is.null(fill_colors)) {
+    if (n < 3) 
+      n <- 3
+    fill_colors <- RColorBrewer::brewer.pal(n, "Set1")
+  }
+  return(theplot + ggplot2::scale_fill_manual(values = fill_colors) + 
+           ggplot2::ggtitle(name))
+}
+
+```
+
+
+
+
+
+
+# TB risk signatures for parasites Visit_1 {.tabset}
+```{r, messAGE=TRUE}
+indata <- indata_v1
+
+TBsignatures$'Leong_RISK_29_up' = c("SPSB1","MOB3C","FUT4","DERA","WARS","ZNRF1","SLC3A1","SRBD1",
+                                    "HM13", "CTSA","TCN2", "APOL6","NAGA","IL31RA")
+TBsignatures$'Leong_RISK_29_dn' = c("SH2D1B","AGAP9","ZNF202","NEIL1","LUC7L","CCDC78","PRSS53","ENO3",
+                                    "CIRBP","SNRNP70","ZNF419","CCDC14","GSTA4","MDN1","SPDYE5")
+
+TBsignatures$Suliman_RISK_4 <- c("GAS6",  "SEPTIN4", "CD1C",  "BLK" )
+TBsignatures$Zak_RISK_16 <- c("ANKRD22",  "APOL1",    "BATF2" ,   "ETV7",     "FCGR1A",   "FCGR1B" ,  "GBP1" ,      "GBP2" , "GBP4", "GBP5", "SCARF1",   "SEPTIN4",    "SERPING1", "STAT1" ,   "TAP1", "TRAFD1")
+
+# select signatures to test TB progression risk
+samp_tbsigs <- list(TBsignatures$Suliman_RISK_4, TBsignatures$Zak_RISK_16, TBsignatures$Sweeney_OD_3, TBsignatures$Darboe_RISK_11, TBsignatures$Leong_RISK_29, TBsignatures$Leong_RISK_29_up, TBsignatures$Leong_RISK_29_dn)
+
+names(samp_tbsigs) <- c("Suliman_RISK_4", "Zak_RISK_16", "Sweeney_OD_3", "Darboe_RISK_11", "Leong_RISK_29", "Leong_RISK_29_up","Leong_RISK_29_dn")
+
+
+gsva_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="GSVA")
+
+ssgsea_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="ssGSEA")
+
+plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="PLAGE")
+
+```
+
+
+
+## ssGSEA {.tabset}
+```{r }
+signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("HELMINTH"),
+                 showColumnNames = FALSE, scale = TRUE,
+                 split_heatmap='none')
+```
+
+
+#### Art's fix
+```{r}
+AsignatureBoxplot=function (inputData, annotationData, signatureColNames, annotationColName, 
+  name = "Signatures", scale = FALSE, violinPlot = FALSE, 
+  includePoints = TRUE, notch = FALSE, rotateLabels = FALSE, 
+  nrow = NULL, ncol = NULL, fill_colors = NULL) 
+{
+  if (methods::is(inputData, "SummarizedExperiment")) {
+    if (any(duplicated(signatureColNames))) {
+      stop("Duplicate signature column name is not supported.")
+    }
+    if (!all(signatureColNames %in% colnames(SummarizedExperiment::colData(inputData)))) {
+      stop("Signature column name not found in inputData.")
+    }
+    if (!all(annotationColName %in% colnames(SummarizedExperiment::colData(inputData)))) {
+      stop("Annotation column name not found in inputData.")
+    }
+    annotationData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+      annotationColName, drop = FALSE])
+    inputData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+      signatureColNames, drop = FALSE])
+  }
+  else {
+    if (ncol(annotationData) != 1) {
+      stop("annotationData must have only one column.")
+    }
+    annotationColName <- colnames(annotationData)
+  }
+  if (length(annotationColName) != 1) {
+    stop("You must specify a single annotation column name to color boxplots by.")
+  }
+  if (!is.factor(annotationData[, 1])) {
+    annotationData[, 1] <- as.factor(annotationData[, 1])
+  }
+  n <- length(levels(annotationData[, 1]))
+  if (n > 9) {
+    stop("Too many levels in the annotation data. The boxplot can contain a maximum of 9 levels")
+  }
+  if (nrow(annotationData) == nrow(inputData)) {
+    if (!all(rownames(annotationData) == rownames(inputData))) {
+      stop("Annotation data and signature data does not match.")
+    }
+  }
+  else if (nrow(annotationData) == ncol(inputData)) {
+    if (!all(rownames(annotationData) == colnames(inputData))) {
+      stop("Annotation data and signature data does not match.")
+    }
+    inputData <- t(inputData)
+  }
+  else {
+    stop("Annotation data and signature data does not match.")
+  }
+  pathwaydata <- t(inputData)
+  if (scale) {
+    pathwaydata <- t(scale(t(pathwaydata)))
+  }
+  boxplotdf <- data.frame(t(pathwaydata), Group = annotationData[, 
+    1])
+  boxplotdfm <- reshape2::melt(boxplotdf, value.name = "Score", 
+    variable.name = "Signature", id.vars = "Group")
+  theplot <- ggplot2::ggplot(boxplotdfm, ggplot2::aes(Group, 
+    Score)) + ggplot2::facet_wrap(~Signature, scales = "free", 
+    nrow = nrow, ncol = ncol)
+  if (violinPlot) {
+    theplot <- theplot + ggplot2::geom_violin(ggplot2::aes(fill = Group)) + 
+      ggplot2::theme_classic()
+  }
+  else {
+    theplot <- theplot + ggplot2::geom_boxplot(outlier.shape = NA, 
+      ggplot2::aes(fill = Group), notch = notch) + 
+      ggplot2::theme_classic()
+  }
+  if (includePoints) {
+    theplot <- theplot + ggplot2::geom_point(position = ggplot2::position_jitter(width = 0.1))
+  }
+  if (rotateLabels) {
+    theplot <- theplot + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, 
+      hjust = 1))
+  }
+  if (is.null(fill_colors)) {
+    if (n < 3) 
+      n <- 3
+    fill_colors <- RColorBrewer::brewer.pal(n, "Set1")
+  }
+  return(theplot + ggplot2::scale_fill_manual(values = fill_colors) + 
+    ggplot2::ggtitle(name))
+}
+```
+
+#### Boxplot {.tabset}
+```{r}
+# colData(ssgsea_res)[,"status"] <- as.factor(colData(ssgsea_res)[,"status"])
+
+AsignatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("HELMINTH"), rotateLabels = T,scale = TRUE)
+```
+
+
+
+
+```{r}
+# df <- as.data.frame(colData(ssgsea_res))
+# 
+# group <- df$status
+# score <- df$Suliman_RISK_4
+# 
+# 
+# groups <- list(df$Suliman_RISK_4, df$Leong_RISK_29, df$Zak_RISK_16, df$Sweeney_OD_3)
+# names(groups) <- c("Suliman_RISK4", "Predict29", "Risk16", "Sweeney3")
+# 
+# 
+# sigs <- c("Suliman_RISK_4", "Leong_RISK_29", "Zak_RISK_16", "Sweeney_OD_3")
+# 
+# 
+# 
+# annotationData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+#       annotationColName, drop = FALSE])
+# n <- length(levels(annotationData[, 1]))
+# inputData <- data.frame(SummarizedExperiment::colData(inputData)[, 
+#       signatureColNames, drop = FALSE])
+# 
+# ### transpose input data or no?
+# pathwaydata <- t(inputData)
+# pathwaydata <- t(scale(t(pathwaydata)))
+# 
+# boxplotdf <- data.frame(t(pathwaydata), Group = annotationData[, 
+#     1])
+# 
+# boxplotdfm <- reshape2::melt(boxplotdf, value.name = "Score", 
+#     variable.name = "Signature", id.vars = "Group")
+# 
+# 
+#   boxplotdfm$Group <- as.factor(boxplotdfm$Group)
+#   fill_colors <- RColorBrewer::brewer.pal(4, "Set1")
+#   
+#   
+# theplot <- ggplot(boxplotdfm, aes(x=Group, y=Score, fill=Group)) +                   
+#       geom_boxplot() + 
+#       theme_classic()+ 
+#       scale_fill_manual(values = fill_colors) + 
+#       ggtitle(name) +
+#       facet_wrap(~Signature, scales = "free")
+# theplot
+
+
+```
+
+```{r }
+#svg("results/status_boxplots_ssgsea.svg", height=4, width = 3.5, pointsize = 8)
+# AsignatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+#                  annotationColName = c("status"), rotateLabels = T,scale = TRUE) +
+#    theme(axis.text.x = ggplot2::element_text(angle = 45,
+#        hjust = 1, size=8)) +
+#     theme(legend.text = element_text(size = 8))
+# 
+# 
+# 
+# ggsave("results/status_boxplots_ssgsea_visit_1.png", height=7, width = 7,  pointsize = 5, units="in", device = "png")
+# 
+# ggsave("results/status_boxplots_ssgsea_visit_1.svg", height=7, width = 7,  pointsize = 5, units="in", device = "svg")
+```
+
+
+
+
+#### Boxplots Single {.tabset}
+
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(ssgsea_res, name=i, signatureColNames = i,
+                 annotationColName = c("HELMINTH"), rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(ssgsea_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("HELMINTH",i),
+                     showColumnNames = FALSE, 
+                     column_order =  NULL)
+
+  cat("\n\n")
+}
+
+```
+
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(ssgsea_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r }
+#svg(filename = "t.svg", pointsize = 8, width = 6.5, height = 3.8) 
+set.seed(0)
+compareBoxplots(ssgsea_res, annotationColName = "HELMINTH",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+#dev.off()
+```
+
+#### AUC Boxplots, selected sigs {.tabset}
+```{r }
+
+out <- tableAUC(ssgsea_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE, 
+         output="data.frame")
+# Use dplyr::filter to only select rows with AUC > 0.6 on out object 
+# Pipe into a dplyr::select function to only select signames %>% unlist %>% unname
+# Save this as signatureColNames
+
+out <- out %>% 
+          filter(P.value<0.05) %>% 
+          select(Signature) %>% 
+          unlist() %>% 
+          unname()
+
+
+#png(filename = "RePORT-ssgsea-auc-boxplot-bl.png", pointsize = 8, width = 6.5, height = 3.8)
+# set.seed(0)
+# compareBoxplots(ssgsea_res, annotationColName = "HELMINTH",
+#                 signatureColNames = out,
+#                 pb.show = FALSE, fill.col = "blue",
+#                 rotateLabels = TRUE)
+#dev.off()
+```
+
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "HELMINTH")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = i,
+                   annotationColName = "HELMINTH",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+
+### PLAGE {.tabset}
+
+
+#### Heatmap {.tabset}
+
+```{r }
+signatureHeatmap(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("HELMINTH"),
+                 showColumnNames = FALSE,
+                 split_heatmap='none')
+```
+
+
+#### Boxplot {.tabset}
+
+```{r }
+AsignatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("HELMINTH"))# , rotateLabels = TRUE)
+```
+
+
+#### Boxplot plAGE separated mal and helminth {.tabset}
+```{r }
+#svg("results/status_boxplots_ssgsea.svg", height=4, width = 3.5, pointsize = 8)
+AsignatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("status"), rotateLabels = T,scale = TRUE) +
+  theme(axis.text.x = ggplot2::element_text(angle = 45, 
+      hjust = 1, size=8)) +
+   theme(legend.text = element_text(size = 8))
+
+
+
+# ggsave("results/status_boxplots_plAGE_visit_1.png", height=7, width = 7,  pointsize = 5, units="in", device = "png")
+# 
+# ggsave("results/status_boxplots_plAGE_visit_1.svg", height=7, width = 7,  pointsize = 5, units="in", device = "svg")
+```
+#### Boxplots Single {.tabset}
+
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(plAGE_res,
+                         name=i, 
+                         signatureColNames = i,
+                         annotationColName = c("HELMINTH"),   
+                         ##violinPlot = TRUE,
+                         rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(plAGE_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("HELMINTH",i),
+                     showColumnNames = FALSE, 
+                     column_order = NULL)
+
+  cat("\n\n")
+}
+
+```
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(plAGE_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r }
+set.seed(0)
+compareBoxplots(plAGE_res, annotationColName = "HELMINTH",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+```
+
+
+```{r }
+set.seed(0)
+compareBoxplots(plAGE_res, annotationColName = "nutrition",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+```
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "HELMINTH")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = i,
+                   annotationColName = "HELMINTH",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+
+
+
+# TB risk signatures for malnourished {.tabset}
+
+## ssGSEA {.tabset}
+```{r }
+signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("nutrition"),
+                 showColumnNames = FALSE, scale = TRUE,
+                 split_heatmap='none')
+```
+
+#### Boxplot {.tabset}
+
+```{r }
+signatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("nutrition"), scale = TRUE) #rotateLabels = TRUE,
+```
+
+
+
+#### Boxplots Single {.tabset}
+
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(ssgsea_res, name=i, signatureColNames = i,
+                 annotationColName = c("nutrition"), rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(ssgsea_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("nutrition",i),
+                     showColumnNames = FALSE, 
+                     column_order =  NULL)
+
+  cat("\n\n")
+}
+
+```
+
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(ssgsea_res,
+         annotationColName = "nutrition",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r }
+#svg(filename = "t.svg", pointsize = 8, width = 6.5, height = 3.8) 
+set.seed(0)
+compareBoxplots(ssgsea_res, annotationColName = "nutrition",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+#dev.off()
+```
+
+#### AUC Boxplots, selected sigs {.tabset}
+```{r }
+
+out <- tableAUC(ssgsea_res,
+         annotationColName = "nutrition",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE, 
+         output="data.frame")
+# Use dplyr::filter to only select rows with AUC > 0.6 on out object 
+# Pipe into a dplyr::select function to only select signames %>% unlist %>% unname
+# Save this as signatureColNames
+
+out <- out %>% 
+          filter(P.value<0.05) %>% 
+          select(Signature) %>% 
+          unlist() %>% 
+          unname()
+
+
+#png(filename = "RePORT-ssgsea-auc-boxplot-bl.png", pointsize = 8, width = 6.5, height = 3.8)
+# set.seed(0)
+# compareBoxplots(ssgsea_res, annotationColName = "nutrition",
+#                 signatureColNames = out,
+#                 pb.show = FALSE, fill.col = "blue",
+#                 rotateLabels = TRUE)
+# dev.off()
+```
+
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "nutrition")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = i,
+                   annotationColName = "nutrition",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+
+## PLAGE {.tabset}
+
+
+#### Heatmap {.tabset}
+
+```{r }
+signatureHeatmap(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("nutrition"),
+                 showColumnNames = FALSE,
+                 split_heatmap='none')
+```
+
+
+#### Boxplot {.tabset}
+
+```{r }
+signatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("nutrition"))# , rotateLabels = TRUE)
+```
+
+#### Boxplots Single {.tabset}
+
+```{r, results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(plAGE_res,
+                         name=i, 
+                         signatureColNames = i,
+                         annotationColName = c("nutrition"),   
+                         ##violinPlot = TRUE,
+                         rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(plAGE_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("nutrition",i),
+                     showColumnNames = FALSE, 
+                     column_order = NULL)
+
+  cat("\n\n")
+}
+
+```
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(plAGE_res,
+         annotationColName = "nutrition",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r }
+set.seed(0)
+compareBoxplots(plAGE_res, annotationColName = "nutrition",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+```
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "nutrition")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = i,
+                   annotationColName = "nutrition",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+# TB Signature Profiler for Visit_6 {.tabset}
+```{r, messAGE=TRUE}
+
+indata <- indata_v6
+
+gsva_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="GSVA")
+
+ssgsea_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="ssGSEA")
+
+plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="PLAGE")
+```
+
+
+## ssGSEA {.tabset}
+```{r }
+signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("HELMINTH"),
+                 showColumnNames = FALSE, scale = TRUE,
+                 split_heatmap='none')
+```
+
+#### Boxplot {.tabset}
+
+```{r }
+signatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("HELMINTH"), scale = TRUE) #rotateLabels = TRUE,
+```
+
+
+
+#### Boxplots Single {.tabset}
+
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(ssgsea_res, name=i, signatureColNames = i,
+                 annotationColName = c("HELMINTH"), rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(ssgsea_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("HELMINTH",i),
+                     showColumnNames = FALSE, 
+                     column_order =  NULL)
+
+  cat("\n\n")
+}
+
+```
+
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(ssgsea_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r}
+#svg(filename = "t.svg", pointsize = 8, width = 6.5, height = 3.8) 
+set.seed(0)
+compareBoxplots(ssgsea_res, annotationColName = "HELMINTH",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+#dev.off()
+```
+
+#### AUC Boxplots, selected sigs {.tabset}
+```{r }
+
+out <- tableAUC(ssgsea_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE, 
+         output="data.frame")
+# Use dplyr::filter to only select rows with AUC > 0.6 on out object 
+# Pipe into a dplyr::select function to only select signames %>% unlist %>% unname
+# Save this as signatureColNames
+
+out <- out %>% 
+          filter(P.value<0.05) %>% 
+          select(Signature) %>% 
+          unlist() %>% 
+          unname()
+
+
+# png(filename = "RePORT-ssgsea-auc-boxplot-bl.png", pointsize = 8, width = 6.5, height = 3.8)
+# set.seed(0)
+# compareBoxplots(ssgsea_res, annotationColName = "HELMINTH",
+#                 signatureColNames = out,
+#                 pb.show = FALSE, fill.col = "blue",
+#                 rotateLabels = TRUE)
+# dev.off()
+```
+
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "HELMINTH")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = ssgsea_res,
+                   signatureColNames = i,
+                   annotationColName = "HELMINTH",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+
+### PLAGE {.tabset}
+
+
+#### Heatmap {.tabset}
+
+```{r }
+signatureHeatmap(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColNames = c("HELMINTH"),
+                 showColumnNames = FALSE,
+                 split_heatmap='none')
+```
+
+
+#### Boxplot {.tabset}
+
+```{r }
+signatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("HELMINTH"))# , rotateLabels = TRUE)
+```
+
+#### Boxplots Single {.tabset}
+
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureBoxplot(plAGE_res,
+                         name=i, 
+                         signatureColNames = i,
+                         annotationColName = c("HELMINTH"),   
+                         ##violinPlot = TRUE,
+                         rotateLabels = T))
+
+  cat("\n\n")
+}
+
+```
+
+#### Signature plots {.tabset}
+```{r , results="asis"}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  signatureGeneHeatmap(plAGE_res, useAssay="log_counts_cpm",
+                     samp_tbsigs[[i]],
+                     name = i, signatureColNames = NULL,
+                     annotationColNames = c("HELMINTH",i),
+                     showColumnNames = FALSE, 
+                     column_order = NULL)
+
+  cat("\n\n")
+}
+
+```
+
+#### AUC Table {.tabset}
+```{r }
+set.seed(0)
+tableAUC(plAGE_res,
+         annotationColName = "HELMINTH",
+         signatureColNames = names(samp_tbsigs),
+         num.boot = 100,
+         pb.show = FALSE)
+```
+
+#### AUC Boxplots {.tabset}
+```{r }
+set.seed(0)
+compareBoxplots(plAGE_res, annotationColName = "HELMINTH",
+                signatureColNames = names(samp_tbsigs),
+                pb.show = FALSE, fill.col = "blue",
+                rotateLabels = TRUE)
+```
+
+#### ROC plots {.tabset}
+```{r , fig.height = 9, fig.width = 12}
+signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = names(samp_tbsigs),
+                   annotationColName = "HELMINTH")
+
+```
+
+#### Separate ROC plots  {.tabset}
+
+```{r , results = 'asis'}
+for (i in names(samp_tbsigs)){
+
+  cat("#####", i, "\n")
+
+  print(signatureROCplot_CI(inputData = plAGE_res,
+                   signatureColNames = i,
+                   annotationColName = "HELMINTH",
+                   name = paste("ROC plot,", i, sep = " ")))
+
+  cat("\n\n")
+}
+```
+
+
+
+
+# TB risk signatures for malnourished {.tabset}
+
+<!-- ## ssGSEA {.tabset} -->
+<!-- ```{r } -->
+<!-- signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs), -->
+<!--                  annotationColNames = c("nutrition"), -->
+<!--                  showColumnNames = FALSE, scale = TRUE, -->
+<!--                  split_heatmap='none') -->
+<!-- ``` -->
+
+<!-- #### Boxplot {.tabset} -->
+
+<!-- ```{r } -->
+<!-- signatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs), -->
+<!--                  annotationColName = c("nutrition"), scale = TRUE) #rotateLabels = TRUE, -->
+<!-- ``` -->
+
+
+
+<!-- #### Boxplots Single {.tabset} -->
+
+<!-- ```{r , results="asis"} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   print(signatureBoxplot(ssgsea_res, name=i, signatureColNames = i, -->
+<!--                  annotationColName = c("nutrition"), rotateLabels = T)) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- #### Signature plots {.tabset} -->
+<!-- ```{r , results="asis"} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   signatureGeneHeatmap(ssgsea_res, useAssay="log_counts_cpm", -->
+<!--                      samp_tbsigs[[i]], -->
+<!--                      name = i, signatureColNames = NULL, -->
+<!--                      annotationColNames = c("nutrition",i), -->
+<!--                      showColumnNames = FALSE,  -->
+<!--                      column_order =  NULL) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+
+<!-- ``` -->
+
+
+<!-- #### AUC Table {.tabset} -->
+<!-- ```{r } -->
+<!-- set.seed(0) -->
+<!-- tableAUC(ssgsea_res, -->
+<!--          annotationColName = "nutrition", -->
+<!--          signatureColNames = names(samp_tbsigs), -->
+<!--          num.boot = 100, -->
+<!--          pb.show = FALSE) -->
+<!-- ``` -->
+
+<!-- #### AUC Boxplots {.tabset} -->
+<!-- ```{r } -->
+<!-- #svg(filename = "t.svg", pointsize = 8, width = 6.5, height = 3.8)  -->
+<!-- set.seed(0) -->
+<!-- compareBoxplots(ssgsea_res, annotationColName = "nutrition", -->
+<!--                 signatureColNames = names(samp_tbsigs), -->
+<!--                 pb.show = FALSE, fill.col = "blue", -->
+<!--                 rotateLabels = TRUE) -->
+<!-- #dev.off() -->
+<!-- ``` -->
+
+<!-- #### AUC Boxplots, selected sigs {.tabset} -->
+<!-- ```{r } -->
+
+<!-- out <- tableAUC(ssgsea_res, -->
+<!--          annotationColName = "nutrition", -->
+<!--          signatureColNames = names(samp_tbsigs), -->
+<!--          num.boot = 100, -->
+<!--          pb.show = FALSE,  -->
+<!--          output="data.frame") -->
+<!-- # Use dplyr::filter to only select rows with AUC > 0.6 on out object  -->
+<!-- # Pipe into a dplyr::select function to only select signames %>% unlist %>% unname -->
+<!-- # Save this as signatureColNames -->
+
+<!-- out <- out %>%  -->
+<!--           filter(P.value<0.05) %>%  -->
+<!--           select(Signature) %>%  -->
+<!--           unlist() %>%  -->
+<!--           unname() -->
+
+
+<!-- #png(filename = "RePORT-ssgsea-auc-boxplot-bl.png", pointsize = 8, width = 6.5, height = 3.8) -->
+<!-- # set.seed(0) -->
+<!-- # compareBoxplots(ssgsea_res, annotationColName = "nutrition", -->
+<!-- #                 signatureColNames = out, -->
+<!-- #                 pb.show = FALSE, fill.col = "blue", -->
+<!-- #                 rotateLabels = TRUE) -->
+<!-- # dev.off() -->
+<!-- ``` -->
+
+
+<!-- #### ROC plots {.tabset} -->
+<!-- ```{r , fig.height = 9, fig.width = 12} -->
+<!-- signatureROCplot_CI(inputData = ssgsea_res, -->
+<!--                    signatureColNames = names(samp_tbsigs), -->
+<!--                    annotationColName = "nutrition") -->
+
+<!-- ``` -->
+
+<!-- #### Separate ROC plots  {.tabset} -->
+
+<!-- ```{r , results = 'asis'} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   print(signatureROCplot_CI(inputData = ssgsea_res, -->
+<!--                    signatureColNames = i, -->
+<!--                    annotationColName = "nutrition", -->
+<!--                    name = paste("ROC plot,", i, sep = " "))) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+<!-- ``` -->
+
+
+<!-- ## PLAGE {.tabset} -->
+
+
+<!-- #### Heatmap -->
+
+<!-- ```{r } -->
+<!-- signatureHeatmap(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs), -->
+<!--                  annotationColNames = c("nutrition"), -->
+<!--                  showColumnNames = FALSE, -->
+<!--                  split_heatmap='none') -->
+<!-- ``` -->
+
+
+<!-- #### Boxplot {.tabset} -->
+
+<!-- ```{r } -->
+<!-- signatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs), -->
+<!--                  annotationColName = c("nutrition"))# , rotateLabels = TRUE) -->
+<!-- ``` -->
+
+<!-- #### Boxplots Single {.tabset} -->
+
+<!-- ```{r , results="asis"} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   print(signatureBoxplot(plAGE_res, -->
+<!--                          name=i,  -->
+<!--                          signatureColNames = i, -->
+<!--                          annotationColName = c("nutrition"),    -->
+<!--                          ##violinPlot = TRUE, -->
+<!--                          rotateLabels = T)) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- #### Signature plots {.tabset} -->
+<!-- ```{r , results="asis"} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   signatureGeneHeatmap(plAGE_res, useAssay="log_counts_cpm", -->
+<!--                      samp_tbsigs[[i]], -->
+<!--                      name = i, signatureColNames = NULL, -->
+<!--                      annotationColNames = c("nutrition",i), -->
+<!--                      showColumnNames = FALSE,  -->
+<!--                      column_order = NULL) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- #### AUC Table {.tabset} -->
+<!-- ```{r } -->
+<!-- set.seed(0) -->
+<!-- tableAUC(plAGE_res, -->
+<!--          annotationColName = "nutrition", -->
+<!--          signatureColNames = names(samp_tbsigs), -->
+<!--          num.boot = 100, -->
+<!--          pb.show = FALSE) -->
+<!-- ``` -->
+
+<!-- #### AUC Boxplots {.tabset} -->
+<!-- ```{r } -->
+<!-- set.seed(0) -->
+<!-- compareBoxplots(plAGE_res, annotationColName = "nutrition", -->
+<!--                 signatureColNames = names(samp_tbsigs), -->
+<!--                 pb.show = FALSE, fill.col = "blue", -->
+<!--                 rotateLabels = TRUE) -->
+<!-- ``` -->
+
+<!-- #### ROC plots {.tabset} -->
+<!-- ```{r , fig.height = 9, fig.width = 12} -->
+<!-- signatureROCplot_CI(inputData = plAGE_res, -->
+<!--                    signatureColNames = names(samp_tbsigs), -->
+<!--                    annotationColName = "nutrition") -->
+
+<!-- ``` -->
+
+<!-- #### Separate ROC plots  {.tabset} -->
+
+<!-- ```{r, results = 'asis'} -->
+<!-- for (i in names(samp_tbsigs)){ -->
+
+<!--   cat("#####", i, "\n") -->
+
+<!--   print(signatureROCplot_CI(inputData = plAGE_res, -->
+<!--                    signatureColNames = i, -->
+<!--                    annotationColName = "nutrition", -->
+<!--                    name = paste("ROC plot,", i, sep = " "))) -->
+
+<!--   cat("\n\n") -->
+<!-- } -->
+<!-- ``` -->
+
+
+# Longitudinal visualization {.tabset}
+```{r, messAGE=TRUE}
+indata <- se
+indata <- mkAssay(indata, log = T)
+
+
+# select signatures to test TB progression risk
+samp_tbsigs <- list(TBsignatures$Suliman_RISK_4, TBsignatures$Zak_RISK_16, TBsignatures$Sweeney_OD_3, TBsignatures$Darboe_RISK_11, TBsignatures$Leong_RISK_29)
+
+names(samp_tbsigs) <- c("Suliman_RISK_4", "Zak_RISK_16", "Sweeney_OD_3", "Darboe_RISK_11", "Leong_RISK_29")
+
+
+gsva_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="GSVA")
+
+ssgsea_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="ssGSEA")
+
+plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="PLAGE")
+```
+
+## ssGSEA {.tabset}
+### dots and lines from visit 1 to visit 6 {.tabset}
+```{r}
+# dataframe of colData
+df.col <- as.data.frame(colData(ssgsea_res))
+# subset visit 1 and visit 6
+df.col <- filter(df.col, visit=="Visit_1" | visit=="Visit_6")
+
+# subset only individuals in both timepoints
+x <- filter(df.col, visit=="Visit_1")
+y <- filter(df.col, visit=="Visit_6")
+
+all(y$TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+###FALSE  
+
+x <-  filter(x, x$TB.LION.ID.Number. %in% y$TB.LION.ID.Number.)
+df.col.1 <- filter(df.col, TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+# graph BMI, helminth status, risk signatures ssGSEA scores/PLAGE scores
+df.col.1 %>% group_by(visit) %>% mutate(ind = 1:length(visit)) -> df.col.1
+
+```
+
+# BMI {.tabset}
+```{r}
+#dir.create("results/prelim")
+ggplot(data=df.col.1, mapping=aes(visit, BMI, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+# ggsave("results/prelim/bmi_change.png")
+# ggsave("results/prelim/bmi_change.svg")
+```
+
+
+# risk signature score change ssgsea {.tabset}
+```{r}
+
+p_RISK4 <- ggplot(data=df.col.1, mapping=aes(visit, Suliman_RISK_4, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_RISK11 <- ggplot(data=df.col.1, mapping=aes(visit, Darboe_RISK_11, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_PRED29 <- ggplot(data=df.col.1, mapping=aes(visit, Leong_RISK_29, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_SWEENEY3 <- ggplot(data=df.col.1, mapping=aes(visit, Sweeney_OD_3, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+  
+p_RISK4 + theme(legend.position = "none")+
+p_RISK11 + theme(legend.position = "none")+ 
+p_PRED29+ theme(legend.position = "none") +
+p_SWEENEY3 + guides(TB.LION.ID.Number.="none")
+
+ggsave("results/prelim/ssgsea_change.png")
+ggsave("results/prelim/ssgsea_change.svg")
+
+
+```
+
+
+# PlAGE change {.tabset}
+```{r}
+# dataframe of colData
+pf.col <- as.data.frame(colData(plAGE_res))
+# subset visit 1 and visit 6
+pf.col <- filter(pf.col, visit=="Visit_1" | visit=="Visit_6")
+
+# subset only individuals in both timepoints
+x <- filter(pf.col, visit=="Visit_1")
+y <- filter(pf.col, visit=="Visit_6")
+
+all(y$TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+###FALSE  
+
+x <-  filter(x, x$TB.LION.ID.Number. %in% y$TB.LION.ID.Number.)
+pf.col.1 <- filter(pf.col, TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+# graph BMI, helminth status, risk signatures ssGSEA scores/PLAGE scores
+pf.col.1 %>% group_by(visit) %>% mutate(ind = 1:length(visit)) -> pf.col.1
+
+```
+
+```{r}
+p_RISK4 <- ggplot(data=pf.col.1, mapping=aes(visit, Suliman_RISK_4, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_RISK11 <- ggplot(data=pf.col.1, mapping=aes(visit, Darboe_RISK_11, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_PRED29 <- ggplot(data=pf.col.1, mapping=aes(visit, Leong_RISK_29, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+
+p_SWEENEY3 <- ggplot(data=pf.col.1, mapping=aes(visit, Sweeney_OD_3, group=ind, linetype= TB.LION.ID.Number.)) + 
+  geom_point(aes(color=nutrition, shape=HELMINTH)) +
+  geom_line()
+  
+p_RISK4 +
+p_RISK11 + 
+p_PRED29 +
+p_SWEENEY3 
+```
+
+# animalcules {.tabset}
+## metadata for animalcules {.tabset}
+```{r}
+text <- read_tsv(file.path("data/microbiome_subjectlist_file.txt"))
+subjdata <- read_excel("data/microbiome_subjdata_complete.xlsx")
+text <- text[ which(grepl("_R1.fastq.gz",text$file.txt)),]
+text <- gsub("_R1.fastq.gz", "", text$file.txt)
+text <- as.data.frame(text)
+
+
+# edit data
+df <- subjdata %>% mutate(TB.LION.ID.Number. = gsub("_Visit.*", "", text)) %>% 
+  mutate(visit=str_extract(text, 'Visit_.')) %>% 
+  mutate(nutrition=ifelse(BMI>=18.5,"well", "mal")) %>% 
+  mutate(status=paste(HELMINTH, nutrition, sep="_")) %>% 
+  rename(c('TB.LION.ID.Number.'='subjid')) 
+  
+
+x <- gsub("_Visit.*", "", text$text)
+#x <- unique(x)
+y <- gsub("_Visit.*", "", df$subjid)
+y <- unique(y)
+
+all(x %in% y)
+# TRUE
+
+df <- df[,-1]
+df[64:65,"Gender"] <- "Female"
+
+#write.csv(df, "microbiome_metadata.csv")
+```
+
+
+
+## animalcules results from shiny app {.tabset}
+```{r}
+
+#genus <- read.delim(pipe("pbpaste"))
+#write.csv(x, "data/animalcules_diffex_deseq.csv")
+
+x <- read.csv(file.path("data/animalcules_diffex_deseq.csv"), header=T, )
+
+x$X <- NULL
+
+Absent_well <- filter(x, grepl("Absent_well", x$control)==T)
+Present_well <- filter(x, grepl("Present_well", x$control)==T)
+helminthspecific_well <- Present_well[which(grepl("Absent_well", Present_well$experiment)),]
+helminthspecific_mal <- x[which(grepl("Absent_mal vs. Present_mal", x$Contrast)),]
+nut_spec_helminthpresent <- x[which(grepl("Present_mal vs. Present_well", x$Contrast)),]
+nut_spec_helminthabsent <- x[which(grepl("Absent_mal vs. Absent_well", x$Contrast)),]
+
+
+
+```
+
+## Genus level {.tabset}
+```{r}
+#genus <- read.delim(pipe("pbpaste"))
+#write.csv(genus, "data/animalcules_diffex_deseq_genus.csv")
+
+genus <- read.csv("data/animalcules_diffex_deseq_genus.csv")
+
+ghelminthspecific_well <- genus[which(grepl("Absent_well vs. Present_well", genus$Contrast)),]
+ghelminthspecific_mal <- genus[which(grepl("Absent_mal vs. Present_mal", genus$Contrast)),]
+gnut_spec_helminthpresent <- genus[which(grepl("Present_mal vs. Present_well", genus$Contrast)),]
+gnut_spec_helminthabsent <- genus[which(grepl("Absent_mal vs. Absent_well", genus$Contrast)),]
+
+
+# get specific genera and spp stats
+topgen <- c("Megasphaera", "Veillonella", "Lacrimispora", "Turicibacter")
+topspp <- c("Turicibacter sanguinis", "Butyrivibrio proteoclasticus", "Bifidobacterium gallicum", "Megasphaera elsdenii")
+
+gendf <- genus %>% filter(microbe %in% topgen)
+sppdf <- x %>% filter(microbe %in% topspp)
+
+```
+
+# Microbiome plots {.tabset}
+
+![Figure for microbiome data at visit 1](results/animalcules_plots/All_plots_V2.png)
+
+
+
+# Table 1 for visit 1 RNAseq {.tabset}
+```{r}
+# read data
+df.2 <- read.csv("data/cleaned_subjdata_tblion_rnaseq.csv")
+
+# filter for visit 1
+df.2 <- df.2 %>% filter(visit=="Visit_1")
+table(df.2$HELMINTH, df.2$nutrition)
+
+```
+```{r}
+table(v1$HELMINTH, v1$nutrition)
+```
+
+# Table 1 for microbiome {.tabset}
+```{r}
+mae <- read.csv("data/subjdata_tblion_microbiome.csv")
+```
+```{r}
+mv1 <- filter(mae, visit=="Visit_2")
+table(mv1$HELMINTH, mv1$nutrition)
+```
+
+
+
+# Session Info
+```{r, results='markup', messAGE=TRUE}
+sessionInfo()
+```
+
