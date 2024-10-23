@@ -30,6 +30,11 @@ se <- readRDS("data/tblion_se.RDS")
 df <- as.data.frame(colData(se))
 ```
 
+## change nutrition status to 16<="mal"
+```{r}
+colData(se)$nutrition <- ifelse(colData(se)$BMI > 16, "well", "mal")
+df <- as.data.frame(colData(se))
+```
 
 
 # Explore the data {.tabset}
@@ -135,7 +140,7 @@ indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_
 
 names(indata_tmp) <- NULL
 
-#indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
 #plotPCA(DESeqTransform(indata_tmp))
 g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
 g1
@@ -169,12 +174,12 @@ g <- ggplot(embedding, aes(x=V1, y=V2, color=Class, shape=Helminth, label = coln
 plot(g)
 ggsave(file.path(path1, "umap_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
 
-g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
-  ylab("UMAP 2") + 
-  theme(plot.title = element_text(hjust = 0.5)) 
-
-plot(g2)
-ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
+# g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
+#   ylab("UMAP 2") + 
+#   theme(plot.title = element_text(hjust = 0.5)) 
+# 
+# plot(g2)
+# ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
 
 ```
 
@@ -185,7 +190,7 @@ Create 4 heatmaps of filtered data. 2 heatmaps of data with confounding factors 
 ## Helminth vs no Helminth, control for nutrition {.tabset}
 ```{r }
 path <- file.path("outs/differential_expression/visit_1")
-dir.create(path, recursive = T)
+#dir.create(path, recursive = T)
 # matrix for differential expression
 designMat <- model.matrix(~factor(HELMINTH) + factor(nutrition), data=colData(indata))
 
@@ -254,7 +259,7 @@ path <- file.path("outs/differential_expression/visit_1")
 
 indata.mal <- indata[,colData(indata)$nutrition=="mal"]
 # matrix for differential expression
-designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.mal))
+designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.mal)) # with mal < 16; no Helminth negative
 
 colnames(designMat)
 colnames(designMat) <- c("Intercept", "Present")
