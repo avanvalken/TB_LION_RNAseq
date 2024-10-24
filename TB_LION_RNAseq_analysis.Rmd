@@ -37,6 +37,61 @@ df <- as.data.frame(colData(se))
 ```
 
 
+```{r}
+df.1 <- df 
+rownames(df.1) <- 1:209
+
+df.1$ID <- NULL
+
+id <- df.1 %>% select(-c(subjid, visit))
+
+absent_well <- subset(id, status=="absent_well") %>% distinct()
+rownames(absent_well) <- 1:nrow(absent_well)
+absent_well <- rownames_to_column(absent_well, var="num") %>% 
+               mutate(new_id = paste(status,num, sep="_"))
+
+absent_mal <- subset(id, status=="absent_mal") %>% distinct()
+rownames(absent_mal) <- 1:nrow(absent_mal)
+absent_mal <- rownames_to_column(absent_mal, var="num")%>% 
+               mutate(new_id = paste(status,num, sep="_"))
+
+present_well <- subset(id, status=="present_well") %>% distinct()
+rownames(present_well) <- 1:nrow(present_well)
+present_well <- rownames_to_column(present_well, var="num")%>% 
+               mutate(new_id =paste(status,num, sep="_"))
+
+present_mal <- subset(id, status=="present_mal") %>% distinct()
+rownames(present_mal) <- 1:nrow(present_mal)
+present_mal <- rownames_to_column(present_mal, var="num")%>% 
+               mutate(new_id = paste(status,num, sep="_"))
+
+
+df.2 <- bind_rows(absent_well,absent_mal,present_well,present_mal) %>% 
+               select(c(ID1, new_id))
+
+df.3 <- merge(df, df.2, by.x="ID1", by.y="ID1")
+df.4 <- df.3 %>%  mutate(new_subjid=paste(new_id, visit, sep="_"))
+df.5 <- df.4 %>% select(-c(1:3)) 
+df.5 <- df.5 %>% select(new_subjid, everything() )
+
+counts <- assay(se, "counts")
+x <- colnames(counts)
+y <- as.data.frame(colnames(counts))
+
+all(x %in% df.3$subjid)
+
+y$x <- x
+z <- select(df.4, new_subjid, subjid)
+zz <- merge(y, z, by.x="x", by.y="subjid")
+
+colnames(counts) <- zz$new_subjid
+
+newse <- SummarizedExperiment(assays=counts, 
+                              colData=(df.5))
+saveRDS(newse, "new_se.RDS")
+```
+
+
 # Explore the data {.tabset}
 
 ## visit number, nutrition status, helminth status, male/female, AGE {.tabset}
