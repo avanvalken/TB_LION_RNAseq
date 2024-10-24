@@ -37,3 +37,6 @@ rsconnect/
 # other files
 .DS_Store
 data/
+data_processed/
+outs/
+code/strip_id_from_data.R
