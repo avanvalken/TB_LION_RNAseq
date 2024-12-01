@@ -2096,6 +2096,15 @@ mv1 <- filter(mae, visit=="Visit_2")
 table(mv1$HELMINTH, mv1$nutrition)
 ```
 
+# Nutrient Prediction
+```{r}
+#devtools::install_github('KChen-lab/METAFlux')
+# tutorial
+# https://htmlpreview.github.io/?https://github.com/KChen-lab/METAFlux/blob/main/Tutorials/pipeline.html
+
+# citation
+# Huang, Y., Mohanty, V., Dede, M. et al. Characterizing cancer metabolism from bulk and single-cell RNA-seq data using METAFlux. Nat Commun 14, 4883 (2023). https://doi.org/10.1038/s41467-023-40457-w
+```
 
 
 # Session Info
