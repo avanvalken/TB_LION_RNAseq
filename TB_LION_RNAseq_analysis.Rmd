@@ -2106,6 +2106,13 @@ table(mv1$HELMINTH, mv1$nutrition)
 # Huang, Y., Mohanty, V., Dede, M. et al. Characterizing cancer metabolism from bulk and single-cell RNA-seq data using METAFlux. Nat Commun 14, 4883 (2023). https://doi.org/10.1038/s41467-023-40457-w
 ```
 
+## Redo
+```{r}
+# these 3 did not make it through rsubread
+## mismatched fastq lines and other error
+#2, 24, 72;"LION_032500502LB_VSIT_6"  "LION_033300511LB_VISIT_6" "LION_044800738LB_VISIT_6"
+```
+
 
 # Session Info
 ```{r, results='markup', messAGE=TRUE}
