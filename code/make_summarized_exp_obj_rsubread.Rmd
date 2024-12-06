@@ -92,7 +92,7 @@ colnames(counts) <- x
 ```{r}
 x <- colnames(counts)
 #x <- x[-c(1:2)]
-
+colnames(counts) <- gsub("VISIT_7", "VISIT_6", colnames(counts))
 # make coldata
 df.1 <- data.frame(subjid=x) 
 df.1$subjid <- toupper(df.1$subjid)
@@ -108,37 +108,18 @@ coldata <- merge(df.1, df, by.x="ID1", by.y="ID2")
 coldata <- coldata %>% 
                relocate(subjid, .before="ID1") %>% 
                relocate(visit, .before=status) 
+coldata$visit <- gsub("Visit_7", "Visit_6", coldata$visit)
 
-
-```
-
-
-```{r}
-
-#counts <- data.table::setnames(counts, "SYMBOL", "gene")
-
-# check for duplicated genes
-x <- counts$gene[duplicated(rownames(counts))]
-
-aggregate(df, list(Group=replace(rownames(df),rownames(df) %in% c("A","C"), "A&C")), sum)
-df.1 <-   aggregate(. ~ (gene), df, sum)
-
-counts$GENEID <- NULL
-
-# sum duplicated gene names (ensembl id is different)
-counts <-  aggregate(. ~ (gene), counts, sum)
-
-counts <- column_to_rownames(counts, var="gene")
-```
-
-```{r}
+# make summarized experiment object
 se <- SummarizedExperiment(assays=counts,
                            colData = coldata)
-
 names(assays(se)) <- "counts"
+# Save
+saveRDS(se, "../data/tb_lion_rsubread.RDS")
 
-saveRDS(se, "../data/tblion_se.RDS")
 ```
+
+
 
 
 
