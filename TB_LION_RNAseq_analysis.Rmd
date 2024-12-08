@@ -9,7 +9,8 @@ output: html_document
 library(tidyverse)
 library("readxl")
 library(SummarizedExperiment)
-#library(singleCellTK)
+library(SingleCellExperiment)
+library(singleCellTK)
 library(cowplot)
 library(patchwork)
 library(TBSignatureProfiler)
@@ -26,14 +27,16 @@ knitr::opts_chunk$set(results='hide')
 
 # Load Data {.tabset}
 ```{r}
-se <- readRDS("data/tblion_se.RDS")
+#se <- readRDS("data/tblion_se.RDS")
+se <- readRDS("data/tb_lion_rsubread_se.RDS")
+
 df <- as.data.frame(colData(se))
 ```
 
 ## change nutrition status to 16<="mal"
 ```{r}
-colData(se)$nutrition <- ifelse(colData(se)$BMI > 16, "well", "mal")
-df <- as.data.frame(colData(se))
+# colData(se)$nutrition <- ifelse(colData(se)$BMI > 16, "well", "mal")
+# df <- as.data.frame(colData(se))
 ```
 
 
@@ -219,6 +222,7 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
+write.csv(sig_limmaResNut, file.path(path, "helminth_plus_nutrition_sig.csv"))
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
 
@@ -238,17 +242,25 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+df=data.frame(Outcome=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition") 
 
 
 ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+#write.csv(sig_limmaResNut, file.path(path, "helminth_plus_nutrition_sig.csv"))
 
 # save plot
-#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+svg(file.path(path, "helminth_plus_nutrition_sig.svg"), width=7, height=7)
 g
-#dev.off()
+dev.off()
+png(file.path(path, "helminth_plus_nutrition_sig.png"), width=7, height=7)
+g
+dev.off()
+
+g
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
@@ -376,21 +388,29 @@ DT::datatable(sig_limmaResNut,
 
 ## Make a Heatmap of all genes
 ### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = as.matrix(assay(indata.well[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+df=data.frame(Outcome=colData(indata.well)$"HELMINTH",
+              Nutrition=colData(indata.well)$"nutrition") 
 
 
 ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+write.csv(sig_limmaResNut, file.path(path, "helminth_abs_vs_pres_well-only_sig.csv"))
 
 # save plot
-#svg(file.path(path, "baseline_top1k_helminthstatus_heatmap.svg"), width=7, height=7)
+svg(file.path(path, "helminth_abs_vs_pres_well-only_sig.svg"), width=7, height=7)
 g
-#dev.off()
+dev.off()
+png(file.path(path, "helminth_abs_vs_pres_well-only_sig.png"), width=7, height=7)
+g
+dev.off()
+
+g
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
@@ -429,7 +449,7 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
-#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))
+write.csv(sig_limmaResNut, file.path(path, "mal_vs_well_con_helminth_sig.csv"))
 
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
@@ -461,9 +481,14 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
 # save plot
-#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
 g
-#dev.off()
+dev.off()
+
+png(file.path(path, "mal_vs_well_con_helminth_sig.png"), width=7, height=7)
+g
+dev.off()
+g
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
@@ -534,11 +559,15 @@ df=data.frame(Nutrition=colData(indata.pos)$"nutrition", Helminths=colData(indat
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 
 g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
-
+write.csv(sig_limmaResNut, file.path("mal_v_well_helminthPos_sig.csv"))
 # save plot
-#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+svg(file.path(path, "mal_v_well_helminthPos_sig.svg"), width=7, height=7)
 g
-#dev.off()
+dev.off()
+png(file.path(path, "mal_v_well_helminthPos_sig.png"), width=7, height=7)
+g
+dev.off()
+
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
@@ -610,16 +639,561 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
 # save plot
-#svg(file.path(path, "baseline_top1k.svg"), width=7, height=7)
+write.csv(sig_limmaResNut, file.path("mal_v_well_helminthNeg_sig.csv"))
+# save plot
+svg(file.path(path, "mal_v_well_helminthNeg_sig.svg"), width=7, height=7)
+g
+dev.off()
+png(file.path(path, "mal_v_well_helminthNeg_sig.png"), width=7, height=7)
+g
+dev.off()
+g
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## Visit 6
+## Visit 1 vs Visit 6
+
+
+
+
+
+
+# Dimension Reduction Visit 6  {.tabset}
+
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction")
+#dir.create(path)
+path1 <- file.path(path, "visit_6")
+#dir.create(path1)
+# filter by time
+indata <- indata[,colData(indata)$visit=="Visit_6"] 
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = .5)
+g
+
+# #ggsave(file.path(path, "pca_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
+# g1 + g
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=Class, shape=Helminth, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+ggsave(file.path(path1, "umap_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
+
+# g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
+#   ylab("UMAP 2") + 
+#   theme(plot.title = element_text(hjust = 0.5)) 
+# 
+# plot(g2)
+# ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+# Differential Expression {.tabset}
+Create 4 heatmaps of filtered data. 2 heatmaps of data with confounding factors acounted for. One heatmap of well-nourished helminth absent vs all and see differences, determine if groups cluster together. Get pathway gene list of which makes the most sense. Actually, each group vs all. 
+
+## Helminth vs no Helminth, control for nutrition {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_6")
+#dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) + factor(nutrition), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+write.csv(sig_limmaResNut, file.path(path, "helminth_plus_nutrition_sig.csv"))
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+#write.csv(sig_limmaResNut, file.path(path, "helminth_plus_nutrition_sig.csv"))
+
+# save plot
+svg(file.path(path, "helminth_plus_nutrition_sig.svg"), width=7, height=7)
+g
+dev.off()
+png(file.path(path, "helminth_plus_nutrition_sig.png"), width=7, height=7)
+g
+dev.off()
+
+g
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## Helminth vs no Helminth, mal-nourished only {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_6")
+
+indata.mal <- indata[,colData(indata)$nutrition=="mal"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.mal)) # with mal < 16; no Helminth negative
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.mal, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+#svg(file.path(path, "baseline_top1k_helminthstatus_heatmap.svg"), width=7, height=7)
 g
 #dev.off()
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
+## Helminth vs no Helminth, well-nourished only {.tabset}
+```{r }
+path <- file.path("outs/differential_expression", "visit_6")
+
+indata.well <- indata[,colData(indata)$nutrition=="well"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(HELMINTH) , data=colData(indata.well))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.well, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Present, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+```
 
 
 
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata.well[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Outcome=colData(indata.well)$"HELMINTH",
+              Nutrition=colData(indata.well)$"nutrition") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Outcome=c("Present"="Red","Absent"="Blue")))
+
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+write.csv(sig_limmaResNut, file.path(path, "helminth_abs_vs_pres_well-only_sig.csv"))
+
+# save plot
+svg(file.path(path, "helminth_abs_vs_pres_well-only_sig.svg"), width=7, height=7)
+g
+dev.off()
+png(file.path(path, "helminth_abs_vs_pres_well-only_sig.png"), width=7, height=7)
+g
+dev.off()
+
+g
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, control for helminth {.tabset}
+```{r }
+path <- file.path("outs/differential_expression/visit_6")
+
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition) + factor(HELMINTH) , data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well", "Present")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+write.csv(sig_limmaResNut, file.path(path, "mal_vs_well_con_helminth_sig.csv"))
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata)$"nutrition", Helminths=colData(indata)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
+g
+dev.off()
+
+png(file.path(path, "mal_vs_well_con_helminth_sig.png"), width=7, height=7)
+g
+dev.off()
+g
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, helminth positive{.tabset}
+```{r }
+path <- file.path("outs/differential_expression")
+
+# select only helminth positive
+indata.pos <- indata[,colData(indata)$HELMINTH=="Present"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition), data=colData(indata.pos))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.pos, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata.pos)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata.pos[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata.pos)$"nutrition", Helminths=colData(indata.pos)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+write.csv(sig_limmaResNut, file.path("mal_v_well_helminthPos_sig.csv"))
+# save plot
+svg(file.path(path, "mal_v_well_helminthPos_sig.svg"), width=7, height=7)
+g
+dev.off()
+png(file.path(path, "mal_v_well_helminthPos_sig.png"), width=7, height=7)
+g
+dev.off()
+
+```
+
+number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
+
+## mal vs well, helminth negative {.tabset}
+```{r }
+path <- file.path("outs/differential_expression")
+
+indata.neg <- indata[,colData(indata)$HELMINTH=="Absent"]
+# matrix for differential expression
+designMat <- model.matrix(~factor(nutrition), data=colData(indata.neg))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "well")
+
+head(designMat)
+
+fit <- lmFit(assay(indata.neg, "log_counts_cpm"), designMat)
+
+# Difference in expression between well nourished and control for helminth status 
+
+contrast.matrixNut<- makeContrasts(well, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata.neg)$nutrition)
+
+# histograms of p values
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+#new_hist_padjval_100breaks
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+#new_hist_pval_100breaks
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+#write.csv(sig_limmaResNut, file.path(path, "sig_tbfail_india_baseline.csv"))88
+
+# top 1k genes by lowest p-value
+top_1k_genes <- limmaResNut[1:1000,]
+
+
+#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+
+```
+
+
+
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata.neg[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Nutrition=colData(indata.neg)$"nutrition", Helminths=colData(indata.neg)$"HELMINTH") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+g <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = T )
+
+# save plot
+write.csv(sig_limmaResNut, file.path("mal_v_well_helminthNeg_sig.csv"))
+# save plot
+svg(file.path(path, "mal_v_well_helminthNeg_sig.svg"), width=7, height=7)
+g
+dev.off()
+png(file.path(path, "mal_v_well_helminthNeg_sig.png"), width=7, height=7)
+g
+dev.off()
+g
+```
 # Pathway analysis
 ## IPA, MsigDB, EnrichR
 ### send the list of differentially expressed genes to a database using any of these tools and get results

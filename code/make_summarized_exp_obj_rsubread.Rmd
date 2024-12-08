@@ -23,7 +23,7 @@ subjdata <- readxl::read_xlsx("../data/RNA_seq_Subject_data.xlsx")
 ```{r}
 # select for processing
 df <- subjdata %>% 
-               select(c(`TB LION ID Number:`, GENDER, AGE, BMI, HELMINTH)) %>% 
+               dplyr::select(c(`TB LION ID Number:`, GENDER, AGE, BMI, HELMINTH)) %>% 
                data.table::setnames("TB LION ID Number:", "ID") %>% 
                mutate(nutrition=ifelse(BMI<18.5, "mal", "well"),
                       status=tolower(paste(HELMINTH, nutrition, sep="_")),
@@ -67,8 +67,8 @@ df.1$ID1 <- gsub("LION_0054500940LB","LION_054500940LB", df.1$ID1)
 df.1$ID1 <- gsub("LION_0238000313LB","LION_023800313LB", df.1$ID1)
 df.1$ID1 <- gsub("LION_043800678LB","LION_043200678LB", df.1$ID1)
 df.1$ID1 <- gsub("LION_37500599LB","LION_037500599LB", df.1$ID1)
-df.1 <- filter(df.1, ID1!= "LION_032500502LB")
-df <- filter(df, ID2!= "LION_032500502LB")
+df.1 <- dplyr::filter(df.1, ID1 != "LION_032500502LB")
+df <- dplyr::filter(df, ID2!= "LION_032500502LB")
 # check if correct
 any(df.1$ID1 %in% df$ID2) # TRUE
 all(df.1$ID1 %in% df$ID2) # TRUE
@@ -109,14 +109,36 @@ coldata <- coldata %>%
                relocate(subjid, .before="ID1") %>% 
                relocate(visit, .before=status) 
 coldata$visit <- gsub("Visit_7", "Visit_6", coldata$visit)
+coldata$subjid <- gsub("VISIT_7", "VISIT_6", coldata$subjid)
+coldata$subjid <- gsub("WEEK_8", "VISIT_1", coldata$subjid)
+colnames(counts) <- gsub("WEEK_8", "VISIT_1", colnames(counts))
+
+all(colnames(counts) %in% coldata$subjid)
+
+counts2 <- counts[,coldata$subjid]
+all(colnames(counts2) == coldata$subjid)
+
+```
+
+## Filter for only protein coding genes
+```{r}
+gns <- genes(EnsDb.Hsapiens.v86)
+gns2 <- gns[gns$gene_biotype %in% "protein_coding"]
+
+counts <- dplyr::filter(counts2, rownames(counts2) %in% gns2$gene_name)
+
+```
+
+
+
+```{r}
 
 # make summarized experiment object
-se <- SummarizedExperiment(assays=counts,
+se <- SummarizedExperiment(assays=list(counts=counts2),
                            colData = coldata)
-names(assays(se)) <- "counts"
-# Save
-saveRDS(se, "../data/tb_lion_rsubread.RDS")
 
+# Save
+saveRDS(se, "../data/tb_lion_rsubread_se.RDS")
 ```
 
 
