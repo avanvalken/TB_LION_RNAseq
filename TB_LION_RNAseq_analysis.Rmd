@@ -125,12 +125,12 @@ Using the DESeq object and PCAplot function on the ComBat corrected data
 
 ```{r}
 # path to save
-path <- file.path("outs/dimension_reduction")
+path <- file.path("outs/dimension_reduction", "visit_1")
 #dir.create(path)
-path1 <- file.path(path, "visit_1")
+#path1 <- file.path(path, "visit_1")
 #dir.create(path1)
 # filter by time
-indata <- indata[,colData(indata)$visit=="Visit_1"] 
+indata <- indata_v1
 
 
 # helminth/nutrition info
@@ -148,12 +148,19 @@ indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
 g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
 g1
 
-g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", useAssay = "counts", runPCA = TRUE)
-g <- g + geom_point(size = .5)
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "nutrition",shape="HELMINTH", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
 g
 
-# #ggsave(file.path(path, "pca_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
-# g1 + g
+g1 + g
+```
+### Save
+```{r}
+ggsave(file.path(path, "pca_deseq2.svg"),plot=g1, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_deseq2.png"),plot=g1, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
 ```
 
 
@@ -175,14 +182,13 @@ g <- ggplot(embedding, aes(x=V1, y=V2, color=Class, shape=Helminth, label = coln
   theme(plot.title = element_text(hjust = 0.5)) 
 
 plot(g)
-ggsave(file.path(path1, "umap_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
 
-# g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
-#   ylab("UMAP 2") + 
-#   theme(plot.title = element_text(hjust = 0.5)) 
-# 
-# plot(g2)
-# ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
+g
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap.svg"), width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap.png"), width = 3.5, height = 3.5, pointsize = 5)
 
 ```
 
@@ -667,9 +673,9 @@ Using the DESeq object and PCAplot function on the ComBat corrected data
 
 ```{r}
 # path to save
-path <- file.path("outs/dimension_reduction")
+path <- file.path("outs/dimension_reduction", "visit_6")
 #dir.create(path)
-path1 <- file.path(path, "visit_6")
+
 #dir.create(path1)
 # filter by time
 indata <- indata_v6
@@ -690,14 +696,20 @@ indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
 g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
 g1
 
-g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", useAssay = "counts", runPCA = TRUE)
-g <- g + geom_point(size = .5)
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "nutrition", shape="HELMINTH", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
 g
 
-# #ggsave(file.path(path, "pca_bl.svg"), width = 3.5, height = 3.5, pointsize = 5)
-# g1 + g
+
+g1 + g
 ```
 
+### Save
+```{r}
+ggsave(file.path(path, "pca_v6.svg"), plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_v6.png"), plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
+```
 
 ## UMAP {.tabset}
 
@@ -717,22 +729,16 @@ g <- ggplot(embedding, aes(x=V1, y=V2, color=Class, shape=Helminth, label = coln
   theme(plot.title = element_text(hjust = 0.5)) 
 
 plot(g)
-ggsave(file.path(path1, "umap_v6.svg"), width = 3.5, height = 3.5, pointsize = 5)
-
-# g2 <- ggplot(embedding, aes(x=V1, y=V2, color=status, label = colnames(assay(indata,assay_type)))) + geom_point(size=1) + xlab("UMAP 1") + 
-#   ylab("UMAP 2") + 
-#   theme(plot.title = element_text(hjust = 0.5)) 
-# 
-# plot(g2)
-# ggsave(file.path(path1, "umap_bl_colors.svg"), width = 3.5, height = 3.5, pointsize = 5)
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap_v1.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_v1.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
 
 ```
 
 
 # Differential Expression Visit 6 {.tabset}
-```{r}
-indata <- indata_v6
-```
 
 ## Helminth vs no Helminth, control for nutrition {.tabset}
 ```{r }
@@ -1192,6 +1198,424 @@ g
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
+
+# Differential Expression V1 vs V6
+```{r}
+indata.abs_mal <- se[,colData(se)$status=="absent_mal"] 
+indata.abs_well <- se[,colData(se)$status=="absent_well"]
+indata.pres_mal <- se[,colData(se)$status=="present_mal"]
+indata.pres_well <- se[,colData(se)$status=="present_well"]
+           
+```
+
+## absent_mal
+```{r}
+# subset data
+indata <- indata.abs_mal
+
+# status
+status="absent_mal"
+```
+
+### significant genes
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/", status)
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(visit), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Visit_6")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+## save genes
+write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+
+
+```
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Helminths=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              Visit=colData(indata)$"visit")
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+
+# save plot
+svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+g
+dev.off()
+png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+g
+dev.off()
+
+g
+```
+
+
+## absent_well
+```{r}
+# subset
+indata <- indata.abs_well
+
+#status
+status="absent_well"
+
+```
+
+### significant genes
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/", status)
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(visit), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Visit_6")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+## save genes
+write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+
+
+```
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Helminths=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              Visit=colData(indata)$"visit")
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+
+# save plot
+svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+g
+dev.off()
+png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+g
+dev.off()
+
+g
+```
+
+
+## absent_mal
+```{r}
+# subset
+indata <- indata.abs_mal
+
+#status
+status="absent_mal"
+
+```
+
+### significant genes
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/", status)
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(visit), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Visit_6")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+## save genes
+write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+
+
+```
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Helminths=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              Visit=colData(indata)$"visit")
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+
+# save plot
+svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+g
+dev.off()
+png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+g
+dev.off()
+
+g
+```
+
+
+## present_mal
+```{r}
+# subset
+indata <- indata.pres_mal
+
+# status
+status="present_mal"
+```
+
+### significant genes
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/", status)
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(visit), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Visit_6")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+## save genes
+write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+
+
+```
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Helminths=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              Visit=colData(indata)$"visit")
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+
+# save plot
+svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+g
+dev.off()
+png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+g
+dev.off()
+
+g
+```
+
+
+## present_well
+```{r}
+# subset
+indata <- indata.pres_well
+
+#status
+status="present_well"
+```
+### significant genes
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/", status)
+dir.create(path, recursive = T)
+# matrix for differential expression
+designMat <- model.matrix(~factor(visit), data=colData(indata))
+
+colnames(designMat)
+colnames(designMat) <- c("Intercept", "Visit_6")
+
+head(designMat)
+
+fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
+
+# Difference in expression between Failures and controls 
+
+contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+fitNut <- contrasts.fit(fit,contrast.matrixNut)
+fitNut <- eBayes(fitNut)
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+
+
+dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+table(colData(indata)$subjtype)
+
+new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
+new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
+##shows spike near 0
+
+sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
+sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
+
+
+## save genes
+write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+
+
+```
+### 2 All genes datatable and heatmap {.tabset}
+```{r }
+DT::datatable(sig_limmaResNut, 
+          options=list(scrollX=T,pAGELength=20),
+          rownames = T)
+
+## Make a Heatmap of all genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+df=data.frame(Helminths=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              Visit=colData(indata)$"visit")
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
+g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g
+
+# save plot
+svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+g
+dev.off()
+png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+g
+dev.off()
+
+g
+```
+
+
+
+
 # Pathway analysis
 ```{r}
 
@@ -1297,7 +1721,7 @@ signatureBoxplot=function (inputData, annotationData, signatureColNames, annotat
 
 
 
-# TB risk signatures for parasites Visit_1 {.tabset}
+## TB risk signatures for parasites Visit_1 {.tabset}
 ```{r, messAGE=TRUE}
 indata <- indata_v1
 
@@ -1568,8 +1992,8 @@ out <- tableAUC(ssgsea_res,
 # Save this as signatureColNames
 
 out <- out %>% 
-          filter(P.value<0.05) %>% 
-          select(Signature) %>% 
+          dplyr::filter(P.value<0.05) %>% 
+          dplyr::select(Signature) %>% 
           unlist() %>% 
           unname()
 
@@ -1737,9 +2161,9 @@ for (i in names(samp_tbsigs)){
 
 
 
-# TB risk signatures for malnourished {.tabset}
+## TB risk signatures for malnourished {.tabset}
 
-## ssGSEA {.tabset}
+### ssGSEA {.tabset}
 ```{r }
 signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
                  annotationColNames = c("nutrition"),
@@ -1825,8 +2249,8 @@ out <- tableAUC(ssgsea_res,
 # Save this as signatureColNames
 
 out <- out %>% 
-          filter(P.value<0.05) %>% 
-          select(Signature) %>% 
+         dplyr::filter(P.value<0.05) %>% 
+        dplyr::select(Signature) %>% 
           unlist() %>% 
           unname()
 
@@ -1866,7 +2290,7 @@ for (i in names(samp_tbsigs)){
 ```
 
 
-## PLAGE {.tabset}
+### PLAGE {.tabset}
 
 
 #### Heatmap {.tabset}
@@ -1966,7 +2390,7 @@ for (i in names(samp_tbsigs)){
 }
 ```
 
-# TB Signature Profiler for Visit_6 {.tabset}
+## TB Signature Profiler for Visit_6 {.tabset}
 ```{r, messAGE=TRUE}
 
 indata <- indata_v6
@@ -2065,8 +2489,8 @@ out <- tableAUC(ssgsea_res,
 # Save this as signatureColNames
 
 out <- out %>% 
-          filter(P.value<0.05) %>% 
-          select(Signature) %>% 
+         dplyr::filter(P.value<0.05) %>% 
+        dplyr::select(Signature) %>% 
           unlist() %>% 
           unname()
 
@@ -2297,8 +2721,8 @@ for (i in names(samp_tbsigs)){
 <!-- # Save this as signatureColNames -->
 
 <!-- out <- out %>%  -->
-<!--           filter(P.value<0.05) %>%  -->
-<!--           select(Signature) %>%  -->
+<!--          dplyr::filter(P.value<0.05) %>%  -->
+<!--         dplyr::select(Signature) %>%  -->
 <!--           unlist() %>%  -->
 <!--           unname() -->
 
@@ -2464,17 +2888,20 @@ plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=sa
 # dataframe of colData
 df.col <- as.data.frame(colData(ssgsea_res))
 # subset visit 1 and visit 6
-df.col <- filter(df.col, visit=="Visit_1" | visit=="Visit_6")
+df.col <- dplyr::filter(df.col, visit=="Visit_1" | visit=="Visit_6")
 
 # subset only individuals in both timepoints
-x <- filter(df.col, visit=="Visit_1")
-y <- filter(df.col, visit=="Visit_6")
+x <- dplyr::filter(df.col, visit=="Visit_1")
+y <- dplyr::filter(df.col, visit=="Visit_6")
 
-all(y$TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+all(y$ID1 %in% x$ID1)
 ###FALSE  
 
-x <-  filter(x, x$TB.LION.ID.Number. %in% y$TB.LION.ID.Number.)
-df.col.1 <- filter(df.col, TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+x <-  dplyr::filter(x, x$ID1 %in% y$ID1) # list of matching V1 V2
+x.2 <-  dplyr::filter(x, !(x$ID1 %in% y$ID1)) # list of non-matching V1 V2
+
+
+df.col.1 <- dplyr::filter(df.col, ID1 %in% x$ID1)
 # graph BMI, helminth status, risk signatures ssGSEA scores/PLAGE scores
 df.col.1 %>% group_by(visit) %>% mutate(ind = 1:length(visit)) -> df.col.1
 
@@ -2482,8 +2909,9 @@ df.col.1 %>% group_by(visit) %>% mutate(ind = 1:length(visit)) -> df.col.1
 
 # BMI {.tabset}
 ```{r}
+# Need updated V2 BMI data
 #dir.create("results/prelim")
-ggplot(data=df.col.1, mapping=aes(visit, BMI, group=ind, linetype= TB.LION.ID.Number.)) + 
+ggplot(data=df.col.1, mapping=aes(visit, BMI, group=ind, linetype= ID1)) + 
   geom_point(aes(color=nutrition, shape=HELMINTH)) +
   geom_line()
 # ggsave("results/prelim/bmi_change.png")
@@ -2527,17 +2955,17 @@ ggsave("results/prelim/ssgsea_change.svg")
 # dataframe of colData
 pf.col <- as.data.frame(colData(plAGE_res))
 # subset visit 1 and visit 6
-pf.col <- filter(pf.col, visit=="Visit_1" | visit=="Visit_6")
+pf.col <- dplyr::filter(pf.col, visit=="Visit_1" | visit=="Visit_6")
 
 # subset only individuals in both timepoints
-x <- filter(pf.col, visit=="Visit_1")
-y <- filter(pf.col, visit=="Visit_6")
+x <- dplyr::filter(pf.col, visit=="Visit_1")
+y <- dplyr::filter(pf.col, visit=="Visit_6")
 
 all(y$TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
 ###FALSE  
 
-x <-  filter(x, x$TB.LION.ID.Number. %in% y$TB.LION.ID.Number.)
-pf.col.1 <- filter(pf.col, TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
+x <-  dplyr::filter(x, x$TB.LION.ID.Number. %in% y$TB.LION.ID.Number.)
+pf.col.1 <- dplyr::filter(pf.col, TB.LION.ID.Number. %in% x$TB.LION.ID.Number.)
 # graph BMI, helminth status, risk signatures ssGSEA scores/PLAGE scores
 pf.col.1 %>% group_by(visit) %>% mutate(ind = 1:length(visit)) -> pf.col.1
 
@@ -2610,8 +3038,8 @@ x <- read.csv(file.path("data/animalcules_diffex_deseq.csv"), header=T, )
 
 x$X <- NULL
 
-Absent_well <- filter(x, grepl("Absent_well", x$control)==T)
-Present_well <- filter(x, grepl("Present_well", x$control)==T)
+Absent_well <- dplyr::filter(x, grepl("Absent_well", x$control)==T)
+Present_well <- dplyr::filter(x, grepl("Present_well", x$control)==T)
 helminthspecific_well <- Present_well[which(grepl("Absent_well", Present_well$experiment)),]
 helminthspecific_mal <- x[which(grepl("Absent_mal vs. Present_mal", x$Contrast)),]
 nut_spec_helminthpresent <- x[which(grepl("Present_mal vs. Present_well", x$Contrast)),]
@@ -2638,8 +3066,8 @@ gnut_spec_helminthabsent <- genus[which(grepl("Absent_mal vs. Absent_well", genu
 topgen <- c("Megasphaera", "Veillonella", "Lacrimispora", "Turicibacter")
 topspp <- c("Turicibacter sanguinis", "Butyrivibrio proteoclasticus", "Bifidobacterium gallicum", "Megasphaera elsdenii")
 
-gendf <- genus %>% filter(microbe %in% topgen)
-sppdf <- x %>% filter(microbe %in% topspp)
+gendf <- genus %>% dplyr::filter(microbe %in% topgen)
+sppdf <- x %>% dplyr::filter(microbe %in% topspp)
 
 ```
 
@@ -2655,7 +3083,7 @@ sppdf <- x %>% filter(microbe %in% topspp)
 df.2 <- read.csv("data/cleaned_subjdata_tblion_rnaseq.csv")
 
 # filter for visit 1
-df.2 <- df.2 %>% filter(visit=="Visit_1")
+df.2 <- df.2 %>% dplyr::filter(visit=="Visit_1")
 table(df.2$HELMINTH, df.2$nutrition)
 
 ```
@@ -2668,7 +3096,7 @@ table(v1$HELMINTH, v1$nutrition)
 mae <- read.csv("data/subjdata_tblion_microbiome.csv")
 ```
 ```{r}
-mv1 <- filter(mae, visit=="Visit_2")
+mv1 <- dplyr::filter(mae, visit=="Visit_2")
 table(mv1$HELMINTH, mv1$nutrition)
 ```
 
@@ -2680,7 +3108,69 @@ table(mv1$HELMINTH, mv1$nutrition)
 
 # citation
 # Huang, Y., Mohanty, V., Dede, M. et al. Characterizing cancer metabolism from bulk and single-cell RNA-seq data using METAFlux. Nat Commun 14, 4883 (2023). https://doi.org/10.1038/s41467-023-40457-w
+
+
+library(METAFlux)
+#load the toy example
+data("bulk_test_example")
+# medium file for human derived samples
+data("human_blood")
+#Calculate mras for human sample data
+scores<-calculate_reaction_score(bulk_test_example)
+
+mat = as.matrix(assay(se,"log_counts"))
+
+scores<-calculate_reaction_score(mat)
+
+
+#Calculate flux for human sample data
+flux<-compute_flux(mras=scores,medium=human_blood) 
+
+#optional: flux scores cubic root normalization
+cbrt <- function(x) {
+    sign(x) * abs(x)^(1/3)
+}
+
+flux=cbrt(flux)
+
 ```
+
+
+```{r}
+data("nutrient_lookup_files")
+glucose<-data.frame(glucose=flux[grep("HMR_9034",human_gem$ID),])
+glucose
+```
+
+```{r}
+ggplot(glucose,aes(y=-glucose,x="sample"))+geom_boxplot()+ggtitle("Glucose uptake level")+xlab("")+ylab("Glucose uptake scores")
+```
+
+
+```{r}
+#compute pathway level activity for all samples
+pathway<-unique(unlist(human_gem$SUBSYSTEM))
+pathway_score<-list()
+for (i in pathway){
+path=i
+activity_score<-c()
+for (d in 1:ncol(flux)){
+activity_score[d]<-mean(abs(flux[which(unlist(human_gem$SUBSYSTEM)==i),d]))
+} 
+pathway_score[[i]]<-activity_score
+}
+
+all_pathway_score<-as.data.frame(do.call(rbind,pathway_score))
+colnames(all_pathway_score) <- colnames(flux)
+
+#heatmap 
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(11,"RdBu"))(256)
+
+#png(filename = file.path("outs/metabolism/metab_heatmap.png"), width=2100, height = 2100)
+pheatmap::pheatmap(all_pathway_score,cluster_cols = T,color = rev(mapal),scale = "row")
+#dev.off()
+```
+
 
 ## Redo
 ```{r}
