@@ -125,7 +125,7 @@ all(colnames(counts2) == coldata$subjid)
 gns <- genes(EnsDb.Hsapiens.v86)
 gns2 <- gns[gns$gene_biotype %in% "protein_coding"]
 
-counts <- dplyr::filter(counts2, rownames(counts2) %in% gns2$gene_name)
+counts2 <- dplyr::filter(counts2, rownames(counts2) %in% gns2$gene_name)
 
 ```
 
