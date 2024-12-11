@@ -248,7 +248,7 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH",
+df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Nutrition=colData(indata)$"nutrition") 
 
 
@@ -327,7 +327,7 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+df=data.frame(Helminth=colData(indata)$"HELMINTH") 
 
 
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
@@ -404,7 +404,7 @@ mat = as.matrix(assay(indata.well[row.names(sig_limmaResNut),],"log_counts_cpm")
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata.well)$"HELMINTH",
+df=data.frame(Helminth=colData(indata.well)$"HELMINTH",
               Nutrition=colData(indata.well)$"nutrition") 
 
 
@@ -792,7 +792,7 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH",
+df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Nutrition=colData(indata)$"nutrition") 
 
 
@@ -870,7 +870,7 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata)$"HELMINTH") 
+df=data.frame(Helminth=colData(indata)$"HELMINTH") 
 
 
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
@@ -947,7 +947,7 @@ mat = as.matrix(assay(indata.well[row.names(sig_limmaResNut),],"log_counts_cpm")
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
-df=data.frame(Outcome=colData(indata.well)$"HELMINTH",
+df=data.frame(Helminth=colData(indata.well)$"HELMINTH",
               Nutrition=colData(indata.well)$"nutrition") 
 
 
@@ -3165,6 +3165,13 @@ colnames(all_pathway_score) <- colnames(flux)
 
 #heatmap 
 mapal <- colorRampPalette(RColorBrewer::brewer.pal(11,"RdBu"))(256)
+
+# annotation
+df=data.frame(Helminth=colData(se)$"HELMINTH",
+              Nutrition=colData(se)$"nutrition") 
+
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 
 #png(filename = file.path("outs/metabolism/metab_heatmap.png"), width=2100, height = 2100)
 pheatmap::pheatmap(all_pathway_score,cluster_cols = T,color = rev(mapal),scale = "row")
