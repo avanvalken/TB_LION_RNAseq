@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 counts <- read.table("../data/rsubread_features_combined.txt",header=T, sep="\t" )
 subjdata <- readxl::read_xlsx("../data/RNA_seq_Subject_data.xlsx")
+subjdata.v6 <- read_excel("../data/RNA_seq_Subject_data_visit_6.xlsx")
 ```
 
 
@@ -119,6 +120,25 @@ counts2 <- counts[,coldata$subjid]
 all(colnames(counts2) == coldata$subjid)
 
 ```
+
+## updata visit_6 BMI
+```{r}
+df <- coldata %>% 
+               filter(visit=="Visit_6")
+df.2 <- subjdata.v6 %>% select(c("TB LION ID Number:", "BMI", "HELMINTH" ))
+
+
+df.3 <- merge(df, df.2, by.x="ID", by.y="TB LION ID Number:")
+
+df.4 <- (select(coldata, c("ID",  "BMI")))
+df.5 <- df.4 %>% distinct(.keep_all=T)
+df.6 <- filter(df.4, duplicated(df.4)==F)
+
+df.6 <- df.4[!(duplicated(df.4) | duplicated(df.4, fromLast = TRUE)), ]
+```
+
+
+
 
 ## Filter for only protein coding genes
 ```{r}
