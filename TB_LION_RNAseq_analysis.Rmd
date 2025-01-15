@@ -1212,9 +1212,14 @@ indata.pres_well <- se[,colData(se)$status=="present_well"]
 ```{r}
 # subset data
 indata <- indata.abs_mal
-
+df <- as.data.frame(colData(indata)) %>% group_by(ID1) %>% filter( n() > 1 )
+indata <- indata[,colData(indata)$ID1 %in% df$ID1]
 # status
 status="absent_mal"
+```
+
+```{r}
+
 ```
 
 ### significant genes
@@ -1222,15 +1227,27 @@ status="absent_mal"
 path <- file.path("outs/differential_expression/v1_v_v6/", status)
 dir.create(path, recursive = T)
 # matrix for differential expression
-designMat <- model.matrix(~factor(visit), data=colData(indata))
+#designMat <- model.matrix(~factor(visit), data=colData(indata))
+designMat <- model.matrix(~factor(ID1) + factor(visit), data=colData(indata))
+
+designMat.2 <- model.matrix(~ 0 + factor(visit) + factor(ID1) , data=colData(indata))
+
+design <- data.frame(Sample=colnames(assay(indata, "log_counts_cpm")),
+                     Visit=colData(indata)$visit,
+                     Pair=as.factor(colData(indata)$ID1))
+#designMat <- model.matrix(~ 0 + factor(design$Visit) + factor(design$Pair))
 
 colnames(designMat)
-colnames(designMat) <- c("Intercept", "Visit_6")
+colnames(designMat) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat))
+colnames(designMat) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat))
+
+colnames(designMat.2) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat.2))
+colnames(designMat.2) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat.2))
 
 head(designMat)
 
 fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
-
+fit.2 <- lmFit(assay(indata, "log_counts_cpm"), designMat.2)
 # Difference in expression between Failures and controls 
 
 contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
@@ -1238,8 +1255,13 @@ fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
 limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
 
+contrast.matrixNut.2 <- makeContrasts(Visit_6, levels = designMat.2)
+fitNut.2 <- contrasts.fit(fit.2,contrast.matrixNut.2)
+fitNut.2 <- eBayes(fitNut.2)
+limmaResNut.2 <- topTable(fitNut.2, adjust.method = "BH", n = Inf, sort.by = "P")
 
 dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+dim(limmaResNut.2[limmaResNut.2$adj.P.Val <0.05,])
 table(colData(indata)$subjtype)
 
 new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
@@ -1721,7 +1743,7 @@ signatureBoxplot=function (inputData, annotationData, signatureColNames, annotat
 
 
 
-## TB risk signatures for parasites Visit_1 {.tabset}
+### TB risk signatures for parasites Visit_1 {.tabset}
 ```{r, messAGE=TRUE}
 indata <- indata_v1
 
@@ -1749,7 +1771,7 @@ plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=sa
 
 
 
-## ssGSEA {.tabset}
+#### ssGSEA {.tabset}
 ```{r }
 signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
                  annotationColNames = c("HELMINTH"),
@@ -2161,7 +2183,7 @@ for (i in names(samp_tbsigs)){
 
 
 
-## TB risk signatures for malnourished {.tabset}
+### TB risk signatures for malnourished {.tabset}
 
 ### ssGSEA {.tabset}
 ```{r }
@@ -2390,7 +2412,7 @@ for (i in names(samp_tbsigs)){
 }
 ```
 
-## TB Signature Profiler for Visit_6 {.tabset}
+### TB Signature Profiler for Visit_6 {.tabset}
 ```{r, messAGE=TRUE}
 
 indata <- indata_v6
@@ -2403,7 +2425,7 @@ plAGE_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=sa
 ```
 
 
-## ssGSEA {.tabset}
+#### ssGSEA {.tabset}
 ```{r }
 signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
                  annotationColNames = c("HELMINTH"),
@@ -2633,7 +2655,7 @@ for (i in names(samp_tbsigs)){
 
 
 
-# TB risk signatures for malnourished {.tabset}
+### TB risk signatures for malnourished {.tabset}
 
 <!-- ## ssGSEA {.tabset} -->
 <!-- ```{r } -->
