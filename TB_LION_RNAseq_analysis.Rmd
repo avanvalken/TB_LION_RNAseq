@@ -91,6 +91,11 @@ p1 / p2
 
 ```
 
+```{r}
+df <- as.data.frame(colData(se))
+
+table(df$status, df$visit)
+```
 
 
 # Analyze SE object for preliminary grant data {.tabset}
@@ -1218,36 +1223,22 @@ indata <- indata[,colData(indata)$ID1 %in% df$ID1]
 status="absent_mal"
 ```
 
-```{r}
-
-```
-
 ### significant genes
 ```{r}
 path <- file.path("outs/differential_expression/v1_v_v6/", status)
 dir.create(path, recursive = T)
 # matrix for differential expression
-#designMat <- model.matrix(~factor(visit), data=colData(indata))
-designMat <- model.matrix(~factor(ID1) + factor(visit), data=colData(indata))
+designMat <- model.matrix(~ 0  + factor(visit) + factor(ID1) , data=colData(indata))
 
-designMat.2 <- model.matrix(~ 0 + factor(visit) + factor(ID1) , data=colData(indata))
-
-design <- data.frame(Sample=colnames(assay(indata, "log_counts_cpm")),
-                     Visit=colData(indata)$visit,
-                     Pair=as.factor(colData(indata)$ID1))
-#designMat <- model.matrix(~ 0 + factor(design$Visit) + factor(design$Pair))
 
 colnames(designMat)
 colnames(designMat) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat))
 colnames(designMat) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat))
 
-colnames(designMat.2) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat.2))
-colnames(designMat.2) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat.2))
-
 head(designMat)
 
 fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
-fit.2 <- lmFit(assay(indata, "log_counts_cpm"), designMat.2)
+
 # Difference in expression between Failures and controls 
 
 contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
@@ -1255,13 +1246,8 @@ fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
 limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
 
-contrast.matrixNut.2 <- makeContrasts(Visit_6, levels = designMat.2)
-fitNut.2 <- contrasts.fit(fit.2,contrast.matrixNut.2)
-fitNut.2 <- eBayes(fitNut.2)
-limmaResNut.2 <- topTable(fitNut.2, adjust.method = "BH", n = Inf, sort.by = "P")
 
 dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
-dim(limmaResNut.2[limmaResNut.2$adj.P.Val <0.05,])
 table(colData(indata)$subjtype)
 
 new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
@@ -1292,11 +1278,16 @@ mat = t(scale(t(mat)))
 ### annotation data for heatmap
 df=data.frame(Helminths=colData(indata)$"HELMINTH",
               Nutrition=colData(indata)$"nutrition",
-              Visit=colData(indata)$"visit")
+              Visit=colData(indata)$"visit",
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit)
 
+mat <- mat[,df$ID]
+
+# remove ID from annotation
+df$ID <- NULL
 
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow"), Visit=c("Visit_1"="Grey", "Visit_6"="Turquoise")))
-g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
+g <- Heatmap(mat, show_row_names=F,show_column_names = T, top_annotation = ha, cluster_columns = F, use_raster = T )
 g
 
 # save plot
@@ -3159,9 +3150,17 @@ flux=cbrt(flux)
 
 
 ```{r}
+
 data("nutrient_lookup_files")
 glucose<-data.frame(glucose=flux[grep("HMR_9034",human_gem$ID),])
 glucose
+```
+
+```{r}
+# Join boxplots of glucose with colData
+#df <- as.data.frame(colData(se))
+
+#df.1 <- merge(df, glucose, by.x)
 ```
 
 ```{r}
@@ -3189,17 +3188,29 @@ colnames(all_pathway_score) <- colnames(flux)
 mapal <- colorRampPalette(RColorBrewer::brewer.pal(11,"RdBu"))(256)
 
 # annotation
-df=data.frame(Helminth=colData(se)$"HELMINTH",
-              Nutrition=colData(se)$"nutrition") 
+df=data.frame(Helminth=as.factor(colData(se)$"HELMINTH"),
+              Nutrition=as.factor(colData(se)$"nutrition"),
+              Visit=as.factor(colData(se)$"visit"),
+              ID=colData(se)$"subjid")
+df <- column_to_rownames(df, var="ID")
 
+df.1 <- df %>% arrange(Nutrition, Helminth, Visit)
+
+mat <- all_pathway_score[,row.names(df.1)]
 
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 
-#png(filename = file.path("outs/metabolism/metab_heatmap.png"), width=2100, height = 2100)
-pheatmap::pheatmap(all_pathway_score,cluster_cols = T,color = rev(mapal),scale = "row")
-#dev.off()
+png(filename = file.path("outs/metabolism/metab_heatmap.png"), width=2100, height = 2100)
+pheatmap::pheatmap(mat,
+                   annotation_col = df,
+                   annotation_colors = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")),
+                   show_colnames = FALSE,
+                   cluster_cols =F,
+                   color = rev(mapal),
+                   scale = "row")
+dev.off()
 ```
-
+Need to use ANOVA/t.test to get p-values for enrichment scores of each metabolic pathway
 
 ## Redo
 ```{r}
