@@ -2076,9 +2076,13 @@ AsignatureBoxplot(plAGE_res, name="PLAGE", signatureColNames = names(samp_tbsigs
       hjust = 1, size=8)) +
    theme(legend.text = element_text(size = 8))
 
+AsignatureBoxplot(ssgsea_res, name="ssGSEA Visit 1", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("status"), rotateLabels = T,scale = TRUE) +
+  theme(axis.text.x = ggplot2::element_text(angle = 45, 
+      hjust = 1, size=8)) +
+   theme(legend.text = element_text(size = 8))
 
-
-# ggsave("results/status_boxplots_plAGE_visit_1.png", height=7, width = 7,  pointsize = 5, units="in", device = "png")
+ggsave("outs/TBSigProfiler/boxplots/status_boxplots_ssGSEA_visit_1.png", height=7, width = 7,  pointsize = 5, units="in", device = "png")
 # 
 # ggsave("results/status_boxplots_plAGE_visit_1.svg", height=7, width = 7,  pointsize = 5, units="in", device = "svg")
 ```
@@ -2429,6 +2433,15 @@ signatureHeatmap(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsig
 ```{r }
 signatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
                  annotationColName = c("HELMINTH"), scale = TRUE) #rotateLabels = TRUE,
+```
+```{r}
+AsignatureBoxplot(ssgsea_res, name="ssGSEA Visit 6", signatureColNames = names(samp_tbsigs),
+                 annotationColName = c("status"), rotateLabels = T,scale = TRUE) +
+  theme(axis.text.x = ggplot2::element_text(angle = 45, 
+      hjust = 1, size=8)) +
+   theme(legend.text = element_text(size = 8))
+
+ggsave("outs/TBSigProfiler/boxplots/status_boxplots_ssGSEA_visit_6.png", height=7, width = 7,  pointsize = 5, units="in", device = "png")
 ```
 
 
