@@ -120,6 +120,310 @@ indata_v1@colData@listData[["visit"]]
 indata_v6 <- indata[,colData(indata)$visit=="Visit_6"]
 indata_v6@colData@listData[["visit"]]
 ```
+
+# Dimension Reduction all samples  {.tabset}
+
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction", "all_samples")
+#dir.create(path)
+
+
+indata <- se
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+# g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+# g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", shape="visit", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
+g
+
+
+```
+### Save
+```{r}
+
+ggsave(file.path(path, "pca_sctk_all.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk_all.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+embedding$visit <- as.factor(indata$visit)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=status, shape=visit, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+
+g
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap_all.svg"), width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_all.png"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+# Mal-only, V1 and V6
+```{r}
+indata.mal <- se[,colData(indata)$nutrition=="mal"]
+indata <- indata.mal
+```
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction", "all_samples")
+#dir.create(path)
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+# g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+# g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "status", shape="visit", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
+g
+
+
+```
+### Save
+```{r}
+
+ggsave(file.path(path, "pca_sctk_mal.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk_mal.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+embedding$visit <- as.factor(indata$visit)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=status, shape=visit, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+
+g
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap_mal.svg"), width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_mal.png"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+# Absent_mal, V1 and V6
+```{r}
+indata <- se[,colData(se)$status=="absent_mal"]
+
+```
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction", "all_samples")
+#dir.create(path)
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+# g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+# g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "visit", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
+g
+
+
+```
+### Save
+```{r}
+
+ggsave(file.path(path, "pca_sctk_absent_mal.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk_absent_mal.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+embedding$visit <- as.factor(indata$visit)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=visit, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+
+g
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap_mal_absent_mal.svg"), width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_mal_absent_mal.png"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+# present_mal, V1 and V6
+```{r}
+indata <- se[,colData(se)$status=="present_mal"]
+
+```
+
+## PCA  {.tabset}
+Using the DESeq object and PCAplot function on the ComBat corrected data
+
+```{r}
+# path to save
+path <- file.path("outs/dimension_reduction", "all_samples")
+#dir.create(path)
+
+
+# helminth/nutrition info
+table(colData(indata)$"status")
+
+
+indata_tmp <- SummarizedExperiment(assays=list(counts=assays(indata)$log_counts_cpm), colData = colData(indata))
+
+#indata_tmp <- indata_tmp[,-which(colnames(indata_tmp) %in% c("10200107A0"))]
+
+names(indata_tmp) <- NULL
+
+indata_tmp2 <- as(indata_tmp, "SingleCellExperiment")
+#plotPCA(DESeqTransform(indata_tmp))
+# g1 <- DESeq2::plotPCA(DESeq2::DESeqTransform(indata_tmp), intgroup="status")
+# g1
+
+g <- singleCellTK::plotPCA(indata_tmp2, colorBy = "visit", useAssay = "counts", runPCA = TRUE)
+g <- g + geom_point(size = 3)
+g
+
+
+```
+### Save
+```{r}
+
+ggsave(file.path(path, "pca_sctk_present_mal.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "pca_sctk_present_mal.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+## UMAP {.tabset}
+
+```{r }
+assay_type = "log_counts_cpm"
+
+set.seed(1)
+umap_out <- umap(t(assay(indata,assay_type)))
+
+embedding <- as.data.frame(umap_out$layout)
+embedding$Class <- as.factor(indata$nutrition)
+embedding$Helminth <- as.factor(indata$HELMINTH)
+embedding$status <- as.factor(indata$status)
+embedding$visit <- as.factor(indata$visit)
+
+g <- ggplot(embedding, aes(x=V1, y=V2, color=visit, label = colnames(assay(indata,assay_type)))) + geom_point(size=3) + xlab("UMAP 1") + 
+  ylab("UMAP 2") + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot(g)
+
+g
+```
+### Save
+```{r}
+ggsave(file.path(path, "umap_mal_present_mal.svg"), width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_mal_present_mal.png"), width = 3.5, height = 3.5, pointsize = 5)
+
+```
+
+
+
+
 # Dimension Reduction Visit 1  {.tabset}
 
 
@@ -203,6 +507,8 @@ Create 4 heatmaps of filtered data. 2 heatmaps of data with confounding factors 
 
 ## Helminth vs no Helminth, control for nutrition {.tabset}
 ```{r }
+visit <- "v1_"
+diffex_test <- "helPres_v_helAbs_con_nutrition_v1_"
 path <- file.path("outs/differential_expression/visit_1/helPres_v_helAbs_con_nutrition")
 dir.create(path, recursive = T)
 # matrix for differential expression
@@ -233,7 +539,7 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
-write.csv(sig_limmaResNut, file.path(path, "helminth_con_nutrition_sig.csv"))
+
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
 
@@ -261,8 +567,8 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 g
-write.csv(sig_limmaResNut, file.path(path, "helminth_con_nutrition_sig.csv"))
 
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"helminth_con_nutrition_sig.csv")))
 # save plot
 svg(file.path(path, "helminth_con_nutrition_sig.svg"), width=7, height=7)
 g
@@ -338,8 +644,8 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH")
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
-write.csv(sig_limmaResNut, file.path(path, "helminth_mal_only_sig.csv"))
-
+#write.csv(sig_limmaResNut, file.path(path, "helminth_mal_only_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"helminth_con_nutrition_sig.csv")))
 # save plot
 svg(file.path(path, "helminth_mal_only_sig.svg"), width=7, height=7)
 g
@@ -416,7 +722,7 @@ df=data.frame(Helminth=colData(indata.well)$"HELMINTH",
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 g
-write.csv(sig_limmaResNut, file.path(path, "helminth_abs_vs_pres_well-only_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"helminth_abs_vs_pres_well-only_sig.csv")))
 
 # save plot
 svg(file.path(path, "helminth_abs_vs_pres_well-only_sig.svg"), width=7, height=7)
@@ -495,7 +801,7 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
-write.csv(sig_limmaResNut, file.path(path, "mal_vs_well_con_helminth_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"mal_vs_well_con_helminth_sig.csv")))
 
 # save plot
 svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
@@ -572,7 +878,7 @@ df=data.frame(Nutrition=colData(indata.pos)$"nutrition", Helminths=colData(indat
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
-write.csv(sig_limmaResNut, file.path(path,"mal_v_well_helminthPos_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"mal_v_well_helminthPos_sig.csv")))
 # save plot
 svg(file.path(path, "mal_v_well_helminthPos_sig.svg"), width=7, height=7)
 g
@@ -647,7 +953,7 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
 # save plot
-write.csv(sig_limmaResNut, file.path(path,"mal_v_well_helminthNeg_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path,paste0(visit,"mal_v_well_helminthNeg_sig.csv")))
 # save plot
 svg(file.path(path, "mal_v_well_helminthNeg_sig.svg"), width=7, height=7)
 g
@@ -737,8 +1043,8 @@ plot(g)
 ```
 ### Save
 ```{r}
-ggsave(file.path(path, "umap_v1.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
-ggsave(file.path(path, "umap_v1.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_v6.svg"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
+ggsave(file.path(path, "umap_v6.png"),plot=g, width = 3.5, height = 3.5, pointsize = 5)
 
 ```
 
@@ -747,6 +1053,7 @@ ggsave(file.path(path, "umap_v1.png"),plot=g, width = 3.5, height = 3.5, pointsi
 
 ## Helminth vs no Helminth, control for nutrition {.tabset}
 ```{r }
+visit <- "v6_"
 path <- file.path("outs/differential_expression/visit_6/helPres_v_helAbs_con_nutrition")
 dir.create(path, recursive = T)
 # matrix for differential expression
@@ -777,7 +1084,7 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
-write.csv(sig_limmaResNut, file.path(path, "helminth_con_nutrition_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path,paste0(visit, "helminth_con_nutrition_sig.csv")))
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
 
@@ -804,7 +1111,7 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 g
-write.csv(sig_limmaResNut, file.path(path, "helminth_con_nutrition_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path,paste0(visit, "helminth_con_nutrition_sig.csv")))
 
 # save plot
 svg(file.path(path, "helminth_con_nutrition_sig.svg"), width=7, height=7)
@@ -881,7 +1188,7 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH")
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
-write.csv(sig_limmaResNut, file.path(path, "helminth_mal_only_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"helminth_mal_only_sig.csv")))
 
 # save plot
 svg(file.path(path, "helminth_mal_only_sig.svg"), width=7, height=7)
@@ -959,7 +1266,7 @@ df=data.frame(Helminth=colData(indata.well)$"HELMINTH",
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 g
-write.csv(sig_limmaResNut, file.path(path, "helminth_abs_vs_pres_well-only_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"helminth_abs_vs_pres_well-only_sig.csv")))
 
 # save plot
 svg(file.path(path, "helminth_abs_vs_pres_well-only_sig.svg"), width=7, height=7)
@@ -1038,7 +1345,7 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
-write.csv(sig_limmaResNut, file.path(path, "mal_vs_well_con_helminth_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path,paste0( visit, "mal_vs_well_con_helminth_sig.csv")))
 
 # save plot
 svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
@@ -1115,7 +1422,7 @@ df=data.frame(Nutrition=colData(indata.pos)$"nutrition", Helminths=colData(indat
 ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
 
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
-write.csv(sig_limmaResNut, file.path(path,"mal_v_well_helminthPos_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path,paste0(visit,"mal_v_well_helminthPos_sig.csv")))
 # save plot
 svg(file.path(path, "mal_v_well_helminthPos_sig.svg"), width=7, height=7)
 g
@@ -1123,13 +1430,15 @@ dev.off()
 png(file.path(path, "mal_v_well_helminthPos_sig.png"), width=700, height=700)
 g
 dev.off()
-
+g
 ```
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
 ## mal vs well, helminth negative {.tabset}
 ```{r }
+visit <- "visit_6"
+diffex_test <- "mal_v_well_helAbs_only"
 path <- file.path("outs/differential_expression","visit_6", "mal_v_well_helAbs_only")
 dir.create(path)
 indata.neg <- indata[,colData(indata)$HELMINTH=="Absent"]
@@ -1190,7 +1499,7 @@ ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"
 g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T )
 
 # save plot
-write.csv(sig_limmaResNut, file.path(path,"mal_v_well_helminthNeg_sig.csv"))
+write.csv(sig_limmaResNut, file.path(path, paste0(visit,"mal_v_well_helminthNeg_sig.csv")))
 # save plot
 svg(file.path(path, "mal_v_well_helminthNeg_sig.svg"), width=7, height=7)
 g
@@ -1221,11 +1530,12 @@ df <- as.data.frame(colData(indata)) %>% group_by(ID1) %>% filter( n() > 1 )
 indata <- indata[,colData(indata)$ID1 %in% df$ID1]
 # status
 status="absent_mal"
+diffex_test="v1_v_v6"
 ```
 
 ### significant genes
 ```{r}
-path <- file.path("outs/differential_expression/v1_v_v6/", status)
+path <- file.path("outs/differential_expression",diffex_test, status)
 dir.create(path, recursive = T)
 # matrix for differential expression
 designMat <- model.matrix(~ 0  + factor(visit) + factor(ID1) , data=colData(indata))
@@ -1259,8 +1569,8 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
 
 ## save genes
-write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
-write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test, status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status,"_pval_sig.csv")))
 
 
 ```
@@ -1291,10 +1601,10 @@ g <- Heatmap(mat, show_row_names=F,show_column_names = T, top_annotation = ha, c
 g
 
 # save plot
-svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+svg(file.path(path, paste0(status,"_sig.svg")), width=7, height=7)
 g
 dev.off()
-png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+png(file.path(path, paste0(status,"_sig.png")), width=700, height=700)
 g
 dev.off()
 
@@ -1346,8 +1656,8 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
 
 ## save genes
-write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
-write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_", status, "_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(diffex_test,"_", status,"_pval_sig.csv")))
 
 
 ```
@@ -1373,10 +1683,10 @@ g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cl
 g
 
 # save plot
-svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+svg(file.path(path, paste0(status,"_sig.svg")), width=7, height=7)
 g
 dev.off()
-png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+png(file.path(path, paste0(status,"_sig.png")), width=700, height=700)
 g
 dev.off()
 
@@ -1428,8 +1738,8 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
 
 ## save genes
-write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
-write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_",status,"_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(diffex_test,"_",status,"_pval_sig.csv")))
 
 
 ```
@@ -1455,10 +1765,10 @@ g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cl
 g
 
 # save plot
-svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+svg(file.path(path, paste0(status,"_sig.svg")), width=7, height=7)
 g
 dev.off()
-png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+png(file.path(path, paste0(status,"_sig.png")), width=700, height=700)
 g
 dev.off()
 
@@ -1509,8 +1819,8 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
 
 ## save genes
-write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
-write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_",status,"_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(diffex_test,"_",status,"_pval_sig.csv")))
 
 
 ```
@@ -1536,10 +1846,10 @@ g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cl
 g
 
 # save plot
-svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+svg(file.path(path, paste0(status,"_sig.svg")), width=7, height=7)
 g
 dev.off()
-png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+png(file.path(path, paste0(status,"_sig.png")), width=700, height=700)
 g
 dev.off()
 
@@ -1589,8 +1899,8 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 
 
 ## save genes
-write.csv(sig_limmaResNut, file.path(path, paste0(status, "_sig.csv")))
-write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status, "_pval_sig.csv")))
+write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_",status,"_sig.csv")))
+write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(diffex_test,"_",status,"_pval_sig.csv")))
 
 
 ```
@@ -1616,10 +1926,10 @@ g <- Heatmap(mat,show_row_names=F,show_column_names = F, top_annotation = ha, cl
 g
 
 # save plot
-svg(file.path(path, paste0(status, "_sig.svg")), width=7, height=7)
+svg(file.path(path, paste0(status,"_sig.svg")), width=7, height=7)
 g
 dev.off()
-png(file.path(path, paste0(status, "_sig.png")), width=700, height=700)
+png(file.path(path, paste0(status,"_sig.png")), width=700, height=700)
 g
 dev.off()
 
@@ -2948,29 +3258,29 @@ ggplot(data=df.col.1, mapping=aes(visit, BMI, group=ind, linetype= ID1)) +
 # risk signature score change ssgsea {.tabset}
 ```{r}
 
-p_RISK4 <- ggplot(data=df.col.1, mapping=aes(visit, Suliman_RISK_4, group=ind, linetype= TB.LION.ID.Number.)) + 
+p_RISK4 <- ggplot(data=df.col.1, mapping=aes(visit, Suliman_RISK_4, group=ind, linetype= ID1)) + 
   geom_point(aes(color=nutrition, shape=HELMINTH)) +
   geom_line()
 
-p_RISK11 <- ggplot(data=df.col.1, mapping=aes(visit, Darboe_RISK_11, group=ind, linetype= TB.LION.ID.Number.)) + 
+p_RISK11 <- ggplot(data=df.col.1, mapping=aes(visit, Darboe_RISK_11, group=ind, linetype= ID1)) + 
   geom_point(aes(color=nutrition, shape=HELMINTH)) +
   geom_line()
 
-p_PRED29 <- ggplot(data=df.col.1, mapping=aes(visit, Leong_RISK_29, group=ind, linetype= TB.LION.ID.Number.)) + 
+p_PRED29 <- ggplot(data=df.col.1, mapping=aes(visit, Leong_RISK_29, group=ind, linetype= ID1)) + 
   geom_point(aes(color=nutrition, shape=HELMINTH)) +
   geom_line()
 
-p_SWEENEY3 <- ggplot(data=df.col.1, mapping=aes(visit, Sweeney_OD_3, group=ind, linetype= TB.LION.ID.Number.)) + 
+p_SWEENEY3 <- ggplot(data=df.col.1, mapping=aes(visit, Sweeney_OD_3, group=ind, linetype= ID1)) + 
   geom_point(aes(color=nutrition, shape=HELMINTH)) +
   geom_line()
   
 p_RISK4 + theme(legend.position = "none")+
 p_RISK11 + theme(legend.position = "none")+ 
 p_PRED29+ theme(legend.position = "none") +
-p_SWEENEY3 + guides(TB.LION.ID.Number.="none")
+p_SWEENEY3 + guides(ID1="none")
 
-ggsave("results/prelim/ssgsea_change.png")
-ggsave("results/prelim/ssgsea_change.svg")
+# ggsave("results/prelim/ssgsea_change.png")
+# ggsave("results/prelim/ssgsea_change.svg")
 
 
 ```
