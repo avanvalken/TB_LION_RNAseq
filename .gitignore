@@ -40,3 +40,5 @@ data/
 data_processed/
 outs/
 code/strip_id_from_data.R
+reports/
+code/make_summarized_exp_obj_rsubread.Rmd
