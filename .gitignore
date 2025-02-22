@@ -33,7 +33,6 @@ docs/
 po/*~
 # RStudio Connect folder
 rsconnect/
-
 # other files
 .DS_Store
 data/
@@ -42,3 +41,4 @@ outs/
 code/strip_id_from_data.R
 reports/
 code/make_summarized_exp_obj_rsubread.Rmd
+installed_old.rda
