@@ -1685,6 +1685,7 @@ sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 nrow(sig_limmaResNut)
 
+sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 ```
 ### 2 All genes datatable and heatmap {.tabset}
@@ -1704,7 +1705,7 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Visit=colData(indata)$"visit",
               BMI=colData(indata)$"BMI",
               ID1=colData(indata)$"ID1",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(BMI, Nutrition, ID1)
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(BMI, Nutrition, Visit, ID1)
 
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
@@ -1725,7 +1726,7 @@ g + g1
 ```{r}
 ## save genes
 write.csv(sig_limmaResNut, file.path(path, paste(diffex_test, status, "sig.csv", sep="_")))
-write.csv(sig_limmaResNut, file.path(ipa, paste(diffex_test, status, "sig.csv", sep="_")))
+write.csv(sig_limmaResNut2k, file.path(ipa, paste(diffex_test, status, "sig.csv", sep="_")))
 #write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status,"_pval_sig.csv")))
 
 
@@ -1850,7 +1851,7 @@ sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 nrow(sig_limmaResNut)
 
-
+sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 ```
 ### 2 All genes datatable and heatmap {.tabset}
 ```{r }
@@ -1890,7 +1891,7 @@ g + g1
 ```{r}
 ## save genes
 write.csv(sig_limmaResNut, file.path(path, paste(diffex_test, status, "sig.csv", sep="_")))
-write.csv(sig_limmaResNut, file.path(ipa, paste(diffex_test, status, "sig.csv", sep="_")))
+write.csv(sig_limmaResNut2k, file.path(ipa, paste(diffex_test, status, "sig.csv", sep="_")))
 
 #write.csv(limmaResNut[limmaResNut$P.Val <0.05,], file.path(path, paste0(status,"_pval_sig.csv")))
 
@@ -2012,7 +2013,7 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
-
+sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 
 ```
@@ -2057,7 +2058,7 @@ g + g1
 ```{r}
 ## save genes
 write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_",status,"_sig.csv")))
-write.csv(sig_limmaResNut, file.path(ipa, paste0(diffex_test,"_",status,"_sig.csv")))
+write.csv(sig_limmaResNut2k, file.path(ipa, paste0(diffex_test,"_",status,"_sig.csv")))
 
 
 # save plot
