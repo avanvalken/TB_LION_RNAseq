@@ -111,13 +111,14 @@ coldata <- merge(df.1, df, by.x="ID1", by.y="ID2")
 coldata <- coldata %>% 
                relocate(subjid, .before="ID1") %>% 
                relocate(visit, .before=status) 
-coldata$visit <- gsub("Visit_7", "Visit_6", coldata$visit)
+coldata$visit <- gsub("Visit_7", "VISIT_6", coldata$visit)
 coldata$subjid <- gsub("VISIT_7", "VISIT_6", coldata$subjid)
 coldata$subjid <- gsub("WEEK_8", "VISIT_1", coldata$subjid)
 colnames(counts) <- gsub("WEEK_8", "VISIT_1", colnames(counts))
+colnames(counts) <- toupper(colnames(counts))
 
 all(colnames(counts) %in% coldata$subjid)
-
+all(coldata$subjid %in% colnames(counts))
 counts2 <- counts[,coldata$subjid]
 all(colnames(counts2) == coldata$subjid)
 
@@ -158,12 +159,19 @@ y <- combined$subjid
 z <- setdiff(x,y)
 z
 ```
+### For now, include z
+```{r}
+z <- dplyr::filter(df, subjid %in% z)
+
+coldata.1 <- rbind(combined, z)
+```
 
 
 
 
 ## Filter for only protein coding genes
 ```{r}
+library(EnsDb.Hsapiens.v86)
 gns <- genes(EnsDb.Hsapiens.v86)
 gns2 <- gns[gns$gene_biotype %in% "protein_coding"]
 
@@ -174,10 +182,13 @@ counts2 <- dplyr::filter(counts2, rownames(counts2) %in% gns2$gene_name)
 
 
 ```{r}
-
+rownames(coldata.1) <- coldata.1$subjid
+all(colnames(counts2) %in% rownames(coldata.1))
+counts2 <- counts2[,rownames(coldata.1)]
+#coldata.1 <- column_to_rownames(coldata.1, var="subjid")
 # make summarized experiment object
 se <- SummarizedExperiment(assays=list(counts=counts2),
-                           colData = coldata)
+                           colData = coldata.1)
 
 # Save
 saveRDS(se, "../data/tb_lion_rsubread_se.RDS")

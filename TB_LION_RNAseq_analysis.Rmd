@@ -90,11 +90,12 @@ p1 / p2
 
 
 ```
-
+# V1 Demographics
 ```{r}
 df <- as.data.frame(colData(se))
+v1 <- filter(df, visit=="Visit_1")
 
-table(df$status, df$visit)
+table(v1$HELMINTH, v1$nutrition)
 ```
 
 
@@ -1037,12 +1038,6 @@ g
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
 ## Visit 6
-## Visit 1 vs Visit 6
-
-
-
-
-
 
 # Dimension Reduction Visit 6  {.tabset}
 
@@ -1642,9 +1637,13 @@ indata.pres_well <- se[,colData(se)$status=="present_well"]
 ## absent_mal
 ```{r}
 # subset data
-indata <- indata.abs_mal
+indata <- se
 df <- as.data.frame(colData(indata)) %>% group_by(ID1) %>% filter( n() > 1 )
 indata <- indata[,colData(indata)$ID1 %in% df$ID1]
+
+index <- sample(1:21, size=50, replace=T)
+
+indata <- indata[,index]
 # status
 status="absent_mal"
 diffex_test="v1_v_v6"
@@ -1655,7 +1654,8 @@ diffex_test="v1_v_v6"
 path <- file.path("outs/differential_expression",diffex_test, status)
 #dir.create(path, recursive = T)
 # matrix for differential expression
-designMat <- model.matrix(~ 0  + factor(visit) + factor(ID1) , data=colData(indata))
+#designMat <- model.matrix(~ 0  + factor(visit) + factor(ID1) , data=colData(indata))
+designMat <- model.matrix(~factor(visit) + factor(ID1) , data=colData(indata))
 
 
 colnames(designMat)
@@ -1674,8 +1674,11 @@ fitNut <- eBayes(fitNut)
 limmaResNut <- topTable(fitNut, adjust.method = "BH",coef="Visit_6", n = Inf, sort.by = "P")
 
 
-dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+dim(limmaResNut[limmaResNut$adj.P.Val <0.7,])
+dim(limmaResNut[limmaResNut$P.Value <0.05,])
+
 table(colData(indata)$visit)
+
 
 new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
 new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
@@ -1696,7 +1699,7 @@ sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 ## Make a Heatmap of all genes
 ### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$P.Value <0.05,]),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 ### annotation data for heatmap
@@ -1705,11 +1708,11 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Visit=colData(indata)$"visit",
               BMI=colData(indata)$"BMI",
               ID1=colData(indata)$"ID1",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(BMI, Nutrition, Visit, ID1)
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit)
 
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
-df <- df %>% select(c(Helminth, Nutrition, Visit))
+df <- df %>% select(c(Helminth, Nutrition, Visit, BMI))
 
 
 # remove ID from annotation
@@ -1870,7 +1873,7 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Visit=colData(indata)$"visit",
               BMI=colData(indata)$"BMI",
               ID1=colData(indata)$"ID1",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit, BMI, Nutrition, ID1)
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit, BMI, Nutrition)
 
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
@@ -1954,7 +1957,7 @@ g
 
 ```
 
-### save
+#### save
 ```{r}
 
 # save plot
@@ -1980,31 +1983,57 @@ status="mal"
 
 ### significant genes
 ```{r}
+indata <- se
 path <- file.path("outs/differential_expression/v1_v_v6/", status)
 #dir.create(path, recursive = T)
 # matrix for differential expression
 #designMat <- model.matrix(~factor(visit) + factor(HELMINTH), data=colData(indata))
-designMat <- model.matrix(~ 0  + factor(visit) + factor(ID1) + factor(HELMINTH), data=colData(indata))
+designMat <- model.matrix(~factor(visit)*factor(nutrition) + factor(ID1) + factor(HELMINTH), data=colData(indata))
 
 
 colnames(designMat)
 colnames(designMat) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat))
 colnames(designMat) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat))
 colnames(designMat) <- gsub(pattern="factor\\(HELMINTH\\)", replacement =  "", colnames(designMat))
-
+colnames(designMat) <- gsub(pattern="factor\\(nutrition\\)", replacement =  "", colnames(designMat))
+colnames(designMat) <- gsub(pattern="\\(Intercept\\)", replacement =  "Visit_1_malnourished", colnames(designMat))
+colnames(designMat) <- gsub(pattern="Visit_6:well", replacement =  "Visit_6_well", colnames(designMat))
 head(designMat)
+
+
 
 fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
 
 # Difference in expression between Failures and controls 
+### pseudocode
+#1. what's the effect of nutritional supplement? 
+### contrast on visit_6
+#2. Do malnourished visit 6 look like well-nourished people?
+### is visit_6_mal=average(well_v1, well_v6)=
+###### intercept + visit_6    = 0.5*(intercept + well) + 0.5*(intercept + well + visit_6 + well:visit_6)
+
+######## visit_6=0.5(well) + 0.5(well + visit_6 + well:visit_6)
+######## visit_6=well + 0.5(visit_6 + well:visit_6)
+######## 0.5(visit_6)=well + 0.5(well:visit_6)
+######## 0.5(visit_6)-well - 0.5(well:visit_6)=0
+# contrast needs to be:(visit_6)-2*well - (well:visit_6)=0
+
+#### we need intercept + visit_6 effect
+#### for well_v1 we need intercept + well
+#### well_v6 is intercept + well + visit_6 + well:visit_6
+
+
 
 contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
+contrast.matrixNut<- makeContrasts(Visit_6 - 2*well - Visit_6_well, levels = designMat)
+
 fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
-limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
+limmaResNut <- topTable(fitNut, adjust.method = "BH", n = "Visit_6 - Visit_1", sort.by = "P")
 
 
 dim(limmaResNut[limmaResNut$adj.P.Val <0.05,])
+dim(limmaResNut[limmaResNut$P.Val <0.001,])
 table(colData(indata)$subjtype)
 
 new_hist_padjval_100breaks <- hist(limmaResNut$adj.P.Val, breaks=100)
@@ -2025,7 +2054,7 @@ sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 ## Make a Heatmap of all genes
 ### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
+mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$P.Val <0.001,]),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 
@@ -2035,12 +2064,12 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Visit=colData(indata)$"visit",
               ID1=colData(indata)$"ID1",
               BMI=colData(indata)$"BMI",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(BMI, Visit, Nutrition, ID1)
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit,Helminth )
 
 
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
-df <- df %>% select(c(Helminth, BMI, Nutrition, Visit))
+df <- df %>% select(c(Helminth,  Nutrition, Visit))
 
 
 # remove ID from annotation
