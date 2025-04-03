@@ -1984,20 +1984,26 @@ status="mal"
 ### significant genes
 ```{r}
 indata <- se
+status <- "all"
 path <- file.path("outs/differential_expression/v1_v_v6/", status)
 #dir.create(path, recursive = T)
 # matrix for differential expression
 #designMat <- model.matrix(~factor(visit) + factor(HELMINTH), data=colData(indata))
-designMat <- model.matrix(~factor(visit)*factor(nutrition) + factor(ID1) + factor(HELMINTH), data=colData(indata))
+table(colData(indata)$nutrition, colData(indata)$visit, colData(indata)$HELMINTH)
 
+colData(indata)$nutrition <- factor(colData(indata)$nutrition, levels=c("well", "mal"))
+
+#designMat <- model.matrix(~factor(ID1) + factor(HELMINTH)  + nutrition*factor(visit) , data=colData(indata))
+designMat <- model.matrix(~ factor(HELMINTH)  + nutrition*factor(visit) , data=colData(indata))
+#design <- model.matrix(~ Sample + Helminth + Group * Visit, data=coldata)
 
 colnames(designMat)
 colnames(designMat) <- gsub(pattern="factor\\(ID1\\)", replacement =  "", colnames(designMat))
 colnames(designMat) <- gsub(pattern="factor\\(visit\\)", replacement =  "", colnames(designMat))
 colnames(designMat) <- gsub(pattern="factor\\(HELMINTH\\)", replacement =  "", colnames(designMat))
-colnames(designMat) <- gsub(pattern="factor\\(nutrition\\)", replacement =  "", colnames(designMat))
-colnames(designMat) <- gsub(pattern="\\(Intercept\\)", replacement =  "Visit_1_malnourished", colnames(designMat))
-colnames(designMat) <- gsub(pattern="Visit_6:well", replacement =  "Visit_6_well", colnames(designMat))
+colnames(designMat) <- gsub(pattern="nutritionmal", replacement =  "mal", colnames(designMat))
+colnames(designMat) <- gsub(pattern="\\(Intercept\\)", replacement =  "Visit_1_wellnourished", colnames(designMat))
+colnames(designMat) <- gsub(pattern="mal:Visit_6", replacement =  "Visit_6_mal", colnames(designMat))
 head(designMat)
 
 
@@ -2025,7 +2031,7 @@ fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
 
 
 contrast.matrixNut<- makeContrasts(Visit_6, levels = designMat)
-contrast.matrixNut<- makeContrasts(Visit_6 - 2*well - Visit_6_well, levels = designMat)
+contrast.matrixNut<- makeContrasts(Visit_6 - 2*mal - Visit_6_mal, levels = designMat)
 
 fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
@@ -2043,8 +2049,6 @@ new_hist_pval_100breaks <- hist(limmaResNut$P.Value, breaks=100)
 sig_limmaResNut <- limmaResNut[limmaResNut$adj.P.Val <0.05,]
 sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
-
-
 ```
 ### 2 All genes datatable and heatmap {.tabset}
 ```{r }
@@ -2054,22 +2058,23 @@ sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 ## Make a Heatmap of all genes
 ### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$P.Val <0.001,]),],"log_counts_cpm"))
+mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$adj.P.Val <0.05,]),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 
 ### annotation data for heatmap
 df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Nutrition=colData(indata)$"nutrition",
+              status=colData(indata)$"status",
               Visit=colData(indata)$"visit",
               ID1=colData(indata)$"ID1",
               BMI=colData(indata)$"BMI",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit,Helminth )
+              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit,status )
 
 
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
-df <- df %>% select(c(Helminth,  Nutrition, Visit))
+df <- df %>% select(c(status, Visit, BMI))
 
 
 # remove ID from annotation
@@ -2082,6 +2087,97 @@ g + g1
 
 
 ```
+
+### dimredu
+```{r}
+# Get PCA data
+mat <- assay(indata, "log_counts_cpm")  # Variance Stabilization
+
+# Perform PCA on voom-transformed expression
+pca <- prcomp(t(mat), scale.=TRUE)  
+
+# Extract PCA variance explained
+percentVar <- round(100 * summary(pca)$importance[2, 1:2], 1)
+
+# Create a dataframe for plotting
+coldata <- as.data.frame(colData(indata))
+pcaData <- data.frame(
+  Sample = coldata$ID1,
+  PC1 = pca$x[,1],
+  PC2 = pca$x[,2],
+  Nutrition = coldata$nutrition,
+  Visit = coldata$visit,
+  Helminth = coldata$HELMINTH
+)
+pcaData$Visit <- factor(pcaData$Visit, levels = c("Visit_1", "Visit_6"))
+# Create a paired dataset for arrows
+pca_pairs <- merge(
+  pcaData[which(pcaData$Visit == "Visit_1"), ], 
+  pcaData[which(pcaData$Visit == "Visit_6"), ], 
+  by="Sample", suffixes=c("_before", "_after"),
+  incomparables = NA
+)
+
+
+pca_before <- pcaData[pcaData$Visit == "Visit_1", ]
+pca_after <- pcaData[pcaData$Visit == "Visit_2", ]
+
+pca_pairs <- data.frame(
+  Sample = pca_before$Sample,
+  PC1_before = pca_before$PC1,
+  PC2_before = pca_before$PC2,
+  PC1_after = pca_after$PC1[match(pca_before$Sample, pca_after$Sample)],
+  PC2_after = pca_after$PC2[match(pca_before$Sample, pca_after$Sample)],
+  Helminth = pca_before$Helminth
+)
+# PCA plot with paired arrows
+ggplot(pcaData, aes(x=PC1, y=PC2)) +
+  geom_point(aes(color=Nutrition, shape=Visit), size=3) +
+  geom_segment(inherit.aes = F, 
+               data=pca_pairs, 
+               aes(x=PC1_before, y=PC2_before, xend=PC1_after, yend=PC2_after, group=Sample, color=Helminth_before), 
+               arrow=arrow(length=unit(0.005,"cm")), alpha=0.4, linewidth=0.5) +  # Arrows for paired samples
+  scale_color_manual(values=c("Absent"="grey", 
+                              "Present"="orange", 
+                              "mal"="red", 
+                              "well"="blue")) +  # Helminth color coding
+  labs(title="PCA Plot: Normalized Data",
+       x=paste0("PC1 (", percentVar[1], "% variance)"),
+       y=paste0("PC2 (", percentVar[2], "% variance)"),
+       color="Helminth Infection") +
+  theme_minimal()
+```
+```{r}
+# Compute centroid (mean PC1 and PC2) for Well-Nourished at each visit
+well_centroids <- aggregate(cbind(PC1, PC2) ~ Visit, 
+                            data=pcaData[pcaData$Nutrition == "well", ], mean)
+pcaData <- pcaData %>%
+  left_join(well_centroids, by="Visit", suffix=c("", "_well")) %>%
+  mutate(Distance_to_Well = sqrt((PC1 - PC1_well)^2 + (PC2 - PC2_well)^2))
+```
+
+```{r}
+ggplot(pcaData[pcaData$Nutrition == "mal", ], aes(x=Visit, y=Distance_to_Well)) +
+  geom_boxplot(aes(fill=Visit)) +
+  geom_point(position=position_jitter(width=0.2), alpha=0.5) +
+  labs(title="Distance from Malnourished to Well-Nourished Centroid",
+       y="Euclidean Distance", x="Visit") +
+  theme_minimal()
+```
+
+
+
+```{r}
+malnourished_distances <- pcaData %>%
+  filter(Nutrition == "mal") %>%
+  select(Sample, Visit, Distance_to_Well) %>%
+  spread(Visit, Distance_to_Well) %>%
+  filter(!is.na(Visit_1) & !is.na(Visit_6))
+
+# Paired t-test
+t.test(malnourished_distances$Visit_1, malnourished_distances$Visit_6, paired=TRUE)
+```
+
 
 ### save
 ```{r}
