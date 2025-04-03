@@ -24,7 +24,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # Load Data
 ```{r}
 # path to find IPA outputs
-path <- file.path("IPA_txt_files")
+path.dir <- file.path("../outs/ipa/ipa_txt")
+path <- path.dir
 IPA <- list.files(path, pattern = "txt")
 # list of paths to each file
 paths <- lapply(IPA, function(x){file.path(path, x)})
@@ -33,9 +34,7 @@ paths <- lapply(IPA, function(x){file.path(path, x)})
 # import names of files and get names of comparisons as "tests"
 
 tests <- gsub(".txt", "", IPA)
-tests <- gsub("IPA_", "", tests)
-tests <- gsub("baseline", "bl", tests)
-tests <- gsub("month2", "m2", tests)
+
 
 # import all outputs
 outs <- lapply(paths, importIPAenrichment,  headerGrep =
@@ -63,8 +62,8 @@ names(outs) <- tests
 # Canonical Pathways
 ## write entire upstream regulator csv
 ```{r}
-outs_path <- file.path("core_analysis_outs")
-dir.create(outs_path)
+outs_path <- file.path("../outs/ipa/results/core_analysis_outs")
+dir.create(outs_path, recursive = T)
 dir.create(file.path(outs_path, "canonical_pathways"))
 dir.create(file.path(outs_path, "canonical_pathways", "csv_files"))
 
@@ -110,7 +109,7 @@ cp_sub <- lapply(cp_sub, function(x){arrange(x,  desc(`-log(p-value)`))})
 # only include top 20 at the most
 X <- lapply(cp_sub, top_n, n=20, wt=`-log(p-value)`)
 
-g <- lapply(X, function(X){ggplot(data=X,  mapping = aes(x=reorder(`Ingenuity Canonical Pathways`, desc(-`-log(p-value)`)), y=`-log(p-value)`,fill=zScore)) +
+g <- lapply(X, function(X){ggplot(data=X,  mapping = aes(x=reorder(`Ingenuity Canonical Pathways`, `-log(p-value)`, decreasing=T), y=`-log(p-value)`,fill=zScore)) +
   geom_bar(stat="identity", width= 0.5) +
   geom_col(position = position_dodge2(width = 0.5, preserve = "single")) +
   scale_fill_gradient2(low="blue", mid="white", high = "red") +
@@ -120,13 +119,13 @@ g <- lapply(X, function(X){ggplot(data=X,  mapping = aes(x=reorder(`Ingenuity Ca
 lapply(g, print)
 
 # save figures
-png_outs <- file.path(outs_path, "canonical_pathways", "barplots")        
-csvs <- lapply(tests, paste0, "_canonical_pathways.png") %>% lapply(function(x) file.path(png_outs, x))
+png_outs <- file.path(outs_path, "canonical_pathways", "barplots")  
+dir.create(png_outs, recursive = T)
 
+csvs <- lapply(tests, paste0, "_canonical_pathways.png") %>% lapply(function(x) file.path(png_outs, x))
 mapply(ggsave, csvs, g, device="png")
 
 csvs <- lapply(tests, paste0, "_canonical_pathways.svg") %>% lapply(function(x) file.path(png_outs, x))
-
 mapply(ggsave, csvs, g, device="svg")
 
 
@@ -145,7 +144,7 @@ names(ur) <- gsub("_all.txt", "", names(ur))
 ur <- lapply(ur, mutate, neg_log_pval= -log10(`P-value`))
 
 # file path for each file
-path <- file.path("core_analysis_outs")
+path <- file.path(outs_path)
 dir.create(file.path(path, "upstream_regulators"))
 dir.create(file.path(path, "upstream_regulators", "csvs"))
 dir.create(file.path(path, "upstream_regulators", "plots"))
@@ -186,14 +185,14 @@ z_score <- 2
 # 
 x <- ur
 #x$TB_failure_bl["Activation z-score"] <- NA
-
-
+x$v1_helminth_con_nutrition$`Activation z-score` = rep(0)
+#### check if value present first
 x <- lapply(x, function(x){x %>% 
   mutate(`Activation z-score` = coalesce(`Activation z-score`, 0))})
 x <- lapply(x, function(i) filter(i, neg_log_pval >= -log10(0.05)))
-x <- lapply(x, function(i) filter(i, abs(`Activation z-score`) >= 2))
+#x <- lapply(x, function(i) filter(i, abs(`Activation z-score`) >= 2))
 
-x$TB_Failure_m2 <- filter(ur$TB_Failure_m2, abs(`Activation z-score`) >=1)
+#x$TB_Failure_m2 <- filter(ur$TB_Failure_m2, abs(`Activation z-score`) >=1)
  
 g <- lapply(x, function(X){ggplot(data = X, mapping = aes(x=reorder(`Upstream Regulator`, (neg_log_pval)), y=neg_log_pval,fill=`Activation z-score`)) +
   geom_bar(stat="identity") +
@@ -585,6 +584,26 @@ mem_canonical_plots <- multienrichjam::mem_plot_folio(mem_canonical,
    verbose=F,
    main="Canonical Pathways");
 ```
+```{r}
+p <- mem_canonical_plots$enrichment_hm
+
+p
+```
+```{r}
+# ggsave(file.path(path.1, "heatmap_z-score.png"), plot=p,width=7, height=7)
+# ggsave(file.path(path.1, "heatmap_z-score.svg"), plot=p,width=7, height=7)
+
+png(file.path(path.1, "heatmap_z-score.png"), width = 1200, height=1200)
+p
+dev.off()
+svg(file.path(path.1, "heatmap_z-score.svg"), width = 1200, height=1200)
+p
+dev.off()
+
+
+```
+
+
 
 The object returned `mem_canonical_plots` will contain a list of the
 graphical objects for each plot requested. For example, each Cnet plot
@@ -731,7 +750,7 @@ displayed as white, even when the P-value is less than 1.
 #  dev.off()
 #  
  
-png("compare_genes_from_genesets_bubbleplot.png", width=7, height=7, pointsize=6, units="in", res=300)
+png(file.path(path.1, "compare_genes_from_genesets_bubbleplot.png"), width=700, height=700, pointsize=6, units="in", res=300)
 mem_enrichment_heatmap(mem_canonical,
    p_cutoff=0.05);
 dev.off()
@@ -745,6 +764,23 @@ mem_enrichment_heatmap(mem_canonical,
    style="heatmap",
    p_cutoff=0.05);
 ```
+### save
+```{r}
+path.1 <- file.path(path, "multienrichjam")
+
+ggsave(filename = file.path(file.path(path.1, "heatmap_-logpval.png")), width=7, height=7)
+
+ggsave(filename = file.path(file.path(path.1, "heatmap_-logpval.svg")), width=7, height=7)
+
+
+png(filename = file.path(file.path(path.1, "heatmap_-logpval.png")), width=7, height=7))
+mem_enrichment_heatmap(mem_canonical,
+   style="heatmap",
+   p_cutoff=0.05);
+dev.off()
+```
+
+
 
 The argument `color_by_column=TRUE` will optionally apply a color
 gradient to each column, using the same P-value threshold defined by
