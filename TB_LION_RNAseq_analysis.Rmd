@@ -1995,6 +1995,7 @@ colData(indata)$nutrition <- factor(colData(indata)$nutrition, levels=c("well", 
 
 #designMat <- model.matrix(~factor(ID1) + factor(HELMINTH)  + nutrition*factor(visit) , data=colData(indata))
 designMat <- model.matrix(~ factor(HELMINTH)  + nutrition*factor(visit) , data=colData(indata))
+
 #design <- model.matrix(~ Sample + Helminth + Group * Visit, data=coldata)
 
 colnames(designMat)
@@ -2087,6 +2088,22 @@ g + g1
 
 
 ```
+#### save
+```{r}
+
+path <- file.path("outs/differential_expression/v1_v_v6/all")
+
+png(file.path(path, "v1_vs_v6_nutrition_by_visit_sig_genes_ordered.png"), width=7, height=7,res=300, units = "in")
+g1
+dev.off()
+svg(file.path(path, "v1_vs_v6_nutrition_by_visit_sig_genes_ordered.svg"), width=7, height=7)
+g1
+dev.off()
+
+write.csv(sig_limmaResNut, file.path(path, "visit_by_nutrition_interaction_plus_helminth.csv"))
+
+
+```
 
 ### dimredu
 ```{r}
@@ -2144,13 +2161,42 @@ ggplot(pcaData, aes(x=PC1, y=PC2)) +
   labs(title="PCA Plot: Normalized Data",
        x=paste0("PC1 (", percentVar[1], "% variance)"),
        y=paste0("PC2 (", percentVar[2], "% variance)"),
-       color="Helminth Infection") +
+       color="Status") +
+  theme_minimal()
+
+### try PCoA's????
+
+# PCA plot with paired arrows
+ggplot(pcaData, aes(x=PC1, y=PC2)) +
+  geom_point(aes(color=Nutrition, shape=Visit), size=3) +
+  geom_segment(inherit.aes = F, 
+               data=pca_pairs, 
+               aes(x=PC1_before, y=PC2_before, xend=PC1_after, yend=PC2_after, group=Sample), 
+               arrow=arrow(length=unit(0.005,"cm")), alpha=0.4, linewidth=0.5) +  # Arrows for paired samples
+  scale_color_manual(values=c("mal"="red", 
+                              "well"="blue")) +  # Helminth color coding
+  labs(title="PCA Plot: Normalized Data",
+       x=paste0("PC1 (", percentVar[1], "% variance)"),
+       y=paste0("PC2 (", percentVar[2], "% variance)"),
+       color="Status") +
   theme_minimal()
 ```
+### save
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/all")
+
+ggsave(file.path(path, "euclidean_distance_PCA.png"), width=5, height=5)
+ggsave(file.path(path, "euclidean_distance_PCA.svg"), width=5, height=5)
+
+
+```
+
+
 ```{r}
 # Compute centroid (mean PC1 and PC2) for Well-Nourished at each visit
 well_centroids <- aggregate(cbind(PC1, PC2) ~ Visit, 
                             data=pcaData[pcaData$Nutrition == "well", ], mean)
+
 pcaData <- pcaData %>%
   left_join(well_centroids, by="Visit", suffix=c("", "_well")) %>%
   mutate(Distance_to_Well = sqrt((PC1 - PC1_well)^2 + (PC2 - PC2_well)^2))
@@ -2163,6 +2209,21 @@ ggplot(pcaData[pcaData$Nutrition == "mal", ], aes(x=Visit, y=Distance_to_Well)) 
   labs(title="Distance from Malnourished to Well-Nourished Centroid",
        y="Euclidean Distance", x="Visit") +
   theme_minimal()
+
+ggplot(pcaData, aes(x=Visit, y=Distance_to_Well)) +
+  geom_boxplot(aes(fill=Nutrition),position="dodge")  +
+  labs(title="Distance from Malnourished to Well-Nourished Centroid",
+       y="Euclidean Distance", x="Visit") +
+  theme_minimal()
+
+```
+### save 
+```{r}
+path <- file.path("outs/differential_expression/v1_v_v6/all")
+
+ggsave(file.path(path, "euclidean_distance_PCA_boxplot.png"), width=5, height=5)
+ggsave(file.path(path, "euclidean_distance_PCA_boxplot.svg"), width=5, height=5)
+
 ```
 
 
@@ -2176,6 +2237,24 @@ malnourished_distances <- pcaData %>%
 
 # Paired t-test
 t.test(malnourished_distances$Visit_1, malnourished_distances$Visit_6, paired=TRUE)
+```
+```{r}
+malnourished_distances <- pcaData %>% 
+  select(Sample,Nutrition, Visit, Distance_to_Well) %>%
+  spread(Visit, Distance_to_Well) %>%
+  filter(!is.na(Visit_1) & !is.na(Visit_6))
+
+df <- filter(pcaData, Sample %in% malnourished_distances$Sample)
+
+aov_result <- aov(Distance_to_Well ~ Nutrition * Visit + Error(Sample/Visit), data = df)
+summary(aov_result)
+
+```
+```{r}
+df$grouping <- interaction(df$Nutrition, df$Visit)
+
+pairwise.t.test(df$Distance_to_Well, df$grouping, paired = FALSE, p.adjust.method = "bonferroni")
+
 ```
 
 
@@ -2384,7 +2463,7 @@ signatureBoxplot=function (inputData, annotationData, signatureColNames, annotat
 ### TB risk signatures for parasites Visit_1 {.tabset}
 ```{r, messAGE=TRUE}
 indata <- indata_v1
-
+indata <- se
 TBsignatures$'Leong_RISK_29_up' = c("SPSB1","MOB3C","FUT4","DERA","WARS","ZNRF1","SLC3A1","SRBD1",
                                     "HM13", "CTSA","TCN2", "APOL6","NAGA","IL31RA")
 TBsignatures$'Leong_RISK_29_dn' = c("SH2D1B","AGAP9","ZNF202","NEIL1","LUC7L","CCDC78","PRSS53","ENO3",
@@ -2397,6 +2476,10 @@ TBsignatures$Zak_RISK_16 <- c("ANKRD22",  "APOL1",    "BATF2" ,   "ETV7",     "F
 samp_tbsigs <- list(TBsignatures$Suliman_RISK_4, TBsignatures$Zak_RISK_16, TBsignatures$Sweeney_OD_3, TBsignatures$Darboe_RISK_11, TBsignatures$Leong_RISK_29, TBsignatures$Leong_RISK_29_up, TBsignatures$Leong_RISK_29_dn)
 
 names(samp_tbsigs) <- c("Suliman_RISK_4", "Zak_RISK_16", "Sweeney_OD_3", "Darboe_RISK_11", "Leong_RISK_29", "Leong_RISK_29_up","Leong_RISK_29_dn")
+
+# samp_tbsigs <- list(TBsignatures$Suliman_RISK_4)
+# 
+# names(samp_tbsigs) <- c("Suliman_RISK_4")
 
 
 gsva_res <- runTBsigProfiler(indata, useAssay = "log_counts_cpm", signatures=samp_tbsigs, algorithm="GSVA")
@@ -2510,9 +2593,20 @@ AsignatureBoxplot=function (inputData, annotationData, signatureColNames, annota
 #### Boxplot {.tabset}
 ```{r}
 # colData(ssgsea_res)[,"status"] <- as.factor(colData(ssgsea_res)[,"status"])
+samp_tbsigs$Zak_RISK_16 <- NULL
+samp_tbsigs$Sweeney_OD_3 <- NULL
+colData(ssgsea_res)$nutrition <- gsub("mal", "Mal", colData(ssgsea_res)$nutrition)
+colData(ssgsea_res)$nutrition <- gsub("well", "Well", colData(ssgsea_res)$nutrition)
+colData(ssgsea_res)$nutrition_visit <- paste(colData(ssgsea_res)$nutrition, colData(ssgsea_res)$visit, sep="_")
+colData(ssgsea_res)$group <- paste(colData(ssgsea_res)$nutrition, colData(ssgsea_res)$HELMINTH, colData(ssgsea_res)$visit, sep="_")
 
-AsignatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames = names(samp_tbsigs),
-                 annotationColName = c("HELMINTH"), rotateLabels = T,scale = TRUE)
+
+AsignatureBoxplot(ssgsea_res, name="ssGSEA", signatureColNames= names(samp_tbsigs),
+                 annotationColName = c("nutrition_visit"), rotateLabels = T,scale = TRUE)
+```
+```{r}
+ggsave(file.path("outs/TBSigProfiler", "nutriton_visit.svg"), width=4, height=4)
+ggsave(file.path("outs/TBSigProfiler", "nutriton_visit.png"), width=7, height=7)
 ```
 
 
@@ -3791,6 +3885,8 @@ data("human_blood")
 #Calculate mras for human sample data
 scores<-calculate_reaction_score(bulk_test_example)
 
+
+######### Start here
 mat = as.matrix(assay(se,"log_counts"))
 
 scores<-calculate_reaction_score(mat)
