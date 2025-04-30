@@ -94,7 +94,7 @@ mapply( write.csv, cp, csvs)
 ```{r}
 # p value and z-score to filter
 pval <- 0.05
-z_score <- 2
+z_score <- 1.5
 
 # filter #
 cp_sub <- lapply(cp, filter, abs(zScore) >= z_score & `P-value` <= pval) 
@@ -109,7 +109,7 @@ cp_sub <- lapply(cp_sub, function(x){arrange(x,  desc(`-log(p-value)`))})
 # only include top 20 at the most
 X <- lapply(cp_sub, top_n, n=20, wt=`-log(p-value)`)
 
-g <- lapply(X, function(X){ggplot(data=X,  mapping = aes(x=reorder(`Ingenuity Canonical Pathways`, `-log(p-value)`, decreasing=T), y=`-log(p-value)`,fill=zScore)) +
+g <- lapply(X, function(X){ggplot(data=X,  mapping = aes(x=reorder(`Ingenuity Canonical Pathways`, `-log(p-value)`, decreasing=F), y=`-log(p-value)`,fill=zScore)) +
   geom_bar(stat="identity", width= 0.5) +
   geom_col(position = position_dodge2(width = 0.5, preserve = "single")) +
   scale_fill_gradient2(low="blue", mid="white", high = "red") +
@@ -165,7 +165,7 @@ mapply( write.csv, ur, paths_ur)
 ```{r}
 # p value and z-score to filter
 pval <- 0.05
-z_score <- 2
+z_score <- 1.5
 
 # filter #
 #ur_sub <- lapply(ur, filter, "P-value" <= pval) 
@@ -245,7 +245,7 @@ mapply( write.csv, dbf, paths_dbf)
 ```{r}
 # p value and z-score to filter
 pval <- 0.05
-z_score <- 2
+z_score <- 1.5
 
 # filter #
 dbf_sub <- lapply(dbf, filter, `P-value` <= pval, is.na(`Activation z-score`) ==F, abs(`Activation z-score`) > 1) 
@@ -342,7 +342,7 @@ mapply( write.csv, causal_networks, paths_causal_networks)
 ```{r}
 # p value and z-score to filter
 pval <- 0.05
-z_score <- 2
+z_score <- 1.5
 
 # filter #
 #causal_networks_sub <- lapply(causal_networks, filter, `P-value` <= pval, is.na(`Activation z-score`) ==F, abs(`Activation z-score`) > 2) 
