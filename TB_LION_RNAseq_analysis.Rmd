@@ -818,6 +818,48 @@ top_25_neg_logfc <- sig_limmaResNut[order(sig_limmaResNut$logFC, decreasing = F)
 top_25_neg_logfc <- top_25_neg_logfc[1:25,]
 ```
 
+### Volcano Plot
+```{r}
+library(ggrepel)
+mat = as.matrix(assay(indata,"log_counts_cpm"))
+
+# dataframe to read for volcano plot
+df <- limmaResNut %>% rownames_to_column(var="gene_symbol")
+
+# label genes
+label_genes <- c(rownames(top_25_logfc), rownames(top_25_neg_logfc))
+# Add a column to the data frame to specify if they are UP- or DOWN- regulated (log2fc respectively positive or negative)
+df$diffexpressed <- "NO"
+# if log2Foldchange > 0.6 and pvalue < 0.05, set as "UP"
+df$diffexpressed[df$logFC > 0.6 & df$adj.P.Val < 0.05] <- "UP"
+# if log2Foldchange < -0.6 and pvalue < 0.05, set as "DOWN"<br /><br /><br />
+df$diffexpressed[df$logFC < -0.6 & df$adj.P.Val < 0.05] <- "DOWN"
+unique(df$diffexpressed)
+df <- df %>% mutate(delabel=ifelse(gene_symbol %in% label_genes, df$gene_symbol, NA))
+
+
+
+unique()# Create a basic volcano plot
+ggplot(data = df, aes(x = logFC, y = -log10(adj.P.Val), col = diffexpressed,  label = delabel)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "black", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "black", linetype = 'dashed') +
+               scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), # to set the colours of our variable<br /><br /><br />
+                     labels = c("Downregulated", "Not significant", "Upregulated")) +
+  geom_point(size=2) +
+               labs(color = 'Expression in Malnourished', #legend_title, 
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"(adjusted p-value)")) +
+               ggtitle('Gene Expression at Baseline') +
+               geom_text_repel()
+               
+
+```
+
+#### Save
+```{r}
+ggsave(file.path(path, "volcano.png"), width=7, height=7, units="in", dpi=300)
+ggsave(file.path(path, "volcano.svg"), width=7, height=7, units="in", dpi=300)
+
+```
 
 
 ### all significant genes datatable and heatmap {.tabset}
@@ -944,10 +986,7 @@ write.csv(top_25_neg_logfc, file.path(path, paste0(visit,"mal_vs_well_con_helmin
 ```
 
 
-### Volcano Plot
-```{r}
 
-```
 
 
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
@@ -1449,11 +1488,14 @@ number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 ```{r }
 path <- file.path("outs/differential_expression/visit_6","mal_vs_well_con_helminth")
 dir.create(path)
+# relevel so well is the intercept
+colData(indata)$nutrition <- factor(colData(indata)$nutrition, levels=c("well","mal"))
+levels(colData(indata)$nutrition)
 # matrix for differential expression
-designMat <- model.matrix(~factor(nutrition) + factor(HELMINTH) , data=colData(indata))
+designMat <- model.matrix(~nutrition + factor(HELMINTH) , data=colData(indata))
 
 colnames(designMat)
-colnames(designMat) <- c("Intercept", "well", "Present")
+colnames(designMat) <- c("Intercept", "mal", "Present")
 
 head(designMat)
 
@@ -1461,7 +1503,7 @@ fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
 
 # Difference in expression between well nourished and control for helminth status 
 
-contrast.matrixNut<- makeContrasts(well, levels = designMat)
+contrast.matrixNut<- makeContrasts(mal, levels = designMat)
 fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
 limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
@@ -1483,11 +1525,55 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
 
+# top 25 high and low genes by logFC 
+top_25_logfc <- sig_limmaResNut[order(sig_limmaResNut$logFC, decreasing=T),]
+top_25_logfc <- top_25_logfc[1:25,]
+top_25_neg_logfc <- sig_limmaResNut[order(sig_limmaResNut$logFC, decreasing = F),]
+top_25_neg_logfc <- top_25_neg_logfc[1:25,]
+```
 
-#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
+### Volcano Plot
+```{r}
+#library(ggrepel)
+mat = as.matrix(assay(indata,"log_counts_cpm"))
+
+# dataframe to read for volcano plot
+df <- limmaResNut %>% rownames_to_column(var="gene_symbol")
+
+# label genes
+label_genes <- c(rownames(top_25_logfc), rownames(top_25_neg_logfc))
+# Add a column to the data frame to specify if they are UP- or DOWN- regulated (log2fc respectively positive or negative)
+df$diffexpressed <- "NO"
+# if log2Foldchange > 0.6 and pvalue < 0.05, set as "UP"
+df$diffexpressed[df$logFC > 0.6 & df$adj.P.Val < 0.05] <- "UP"
+# if log2Foldchange < -0.6 and pvalue < 0.05, set as "DOWN"<br /><br /><br />
+df$diffexpressed[df$logFC < -0.6 & df$adj.P.Val < 0.05] <- "DOWN"
+unique(df$diffexpressed)
+df <- df %>% mutate(delabel=ifelse(gene_symbol %in% label_genes, df$gene_symbol, NA))
+
+
+
+unique()# Create a basic volcano plot
+ggplot(data = df, aes(x = logFC, y = -log10(adj.P.Val), col = diffexpressed,  label = delabel)) +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "black", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "black", linetype = 'dashed') +
+               scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), # to set the colours of our variable<br /><br /><br />
+                     labels = c("Downregulated", "Not significant", "Upregulated")) +
+  geom_point(size=2) +
+               labs(color = 'Expression in Malnourished', #legend_title, 
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"(adjusted p-value)")) +
+               ggtitle('Gene Expression at Visit 6') +
+               geom_text_repel()
+               
 
 ```
 
+#### Save
+```{r}
+ggsave(file.path(path, "volcano.png"), width=7, height=7, units="in", dpi=300)
+ggsave(file.path(path, "volcano.svg"), width=7, height=7, units="in", dpi=300)
+
+```
 
 
 ### 2 All genes datatable and heatmap {.tabset}
@@ -1524,8 +1610,12 @@ number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
 ### save
 ```{r}
+visit <- "v6_"
 write.csv(sig_limmaResNut, file.path(path,paste0( visit, "mal_vs_well_con_helminth_sig.csv")))
 write.csv(sig_limmaResNut, file.path(ipa,paste0( visit, "mal_vs_well_con_helminth_sig.csv")))
+write.csv(top_25_logfc, file.path(path,paste0( visit, "top_25_logfc_mal_vs_well_con_helminth_sig.csv")))
+write.csv(top_25_neg_logfc, file.path(path,paste0( visit, "top_25_neg_logfc_mal_vs_well_con_helminth_sig.csv")))
+
 
 # save plot
 svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
