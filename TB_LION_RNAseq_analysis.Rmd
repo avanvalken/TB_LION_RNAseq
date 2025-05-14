@@ -770,14 +770,18 @@ g
 number of genes of p.adj<0.05=`r nrow(sig_limmaResNut)`
 
 ## mal vs well, control for helminth {.tabset}
+### all significant genes
 ```{r }
 path <- file.path("outs/differential_expression/visit_1","mal_vs_well_con_helminth")
 dir.create(path)
+# relevel so well is the intercept
+colData(indata)$nutrition <- factor(colData(indata)$nutrition, levels=c("well","mal"))
+levels(colData(indata)$nutrition)
 # matrix for differential expression
-designMat <- model.matrix(~factor(nutrition) + factor(HELMINTH) , data=colData(indata))
+designMat <- model.matrix(~nutrition + factor(HELMINTH) , data=colData(indata))
 
 colnames(designMat)
-colnames(designMat) <- c("Intercept", "well", "Present")
+colnames(designMat) <- c("Intercept", "mal", "Present")
 
 head(designMat)
 
@@ -785,7 +789,7 @@ fit <- lmFit(assay(indata, "log_counts_cpm"), designMat)
 
 # Difference in expression between well nourished and control for helminth status 
 
-contrast.matrixNut<- makeContrasts(well, levels = designMat)
+contrast.matrixNut<- makeContrasts(mal, levels = designMat)
 fitNut <- contrasts.fit(fit,contrast.matrixNut)
 fitNut <- eBayes(fitNut)
 limmaResNut <- topTable(fitNut, adjust.method = "BH", n = Inf, sort.by = "P")
@@ -807,14 +811,16 @@ sig_limmaResNut <- sig_limmaResNut[order(sig_limmaResNut$adj.P.Val),]
 # top 1k genes by lowest p-value
 top_1k_genes <- limmaResNut[1:1000,]
 
-
-#write.csv(limmaResNut[1:3000,], file.path(path, "IPA_TB_Failure_baseline_3kgenes.csv"))
-
+# top 25 high and low genes by logFC 
+top_25_logfc <- sig_limmaResNut[order(sig_limmaResNut$logFC, decreasing=T),]
+top_25_logfc <- top_25_logfc[1:25,]
+top_25_neg_logfc <- sig_limmaResNut[order(sig_limmaResNut$logFC, decreasing = F),]
+top_25_neg_logfc <- top_25_neg_logfc[1:25,]
 ```
 
 
 
-### 2 All genes datatable and heatmap {.tabset}
+### all significant genes datatable and heatmap {.tabset}
 ```{r }
 datatable(sig_limmaResNut, 
           options=list(scrollX=T,pAGELength=20),
@@ -852,8 +858,10 @@ g + g1
 
 ### save
 ```{r}
+# save significant gene list
 write.csv(sig_limmaResNut, file.path(path, paste0(visit,"mal_vs_well_con_helminth_sig.csv")))
 write.csv(sig_limmaResNut, file.path(ipa, paste0(visit,"mal_vs_well_con_helminth_sig.csv")))
+
 
 # save plot
 svg(file.path(path, "mal_vs_well_con_helminth_sig.svg"), width=7, height=7)
@@ -873,6 +881,72 @@ dev.off()
 png(file.path(path, "mal_vs_well_con_helminth_sig_ordered.png"), width=700, height=700)
 g1
 dev.off()
+```
+
+### top and bottom 25 by logFC
+```{r}
+## Make a Heatmap of top25 genes
+### gene matrix, scaled across genes (genes as columns)
+mat = as.matrix(assay(indata[row.names(top_25_logfc),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+#df=data.frame(Nutrition=colData(indata)$"nutrition", Helminths=colData(indata)$"HELMINTH") 
+### annotation data for heatmap
+df=data.frame(Helminth=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              BMI=colData(indata)$"BMI",
+              ID=colData(indata)$"subjid",
+              status=colData(indata)$"status") %>% arrange( BMI)
+mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
+
+df <- df %>% select(c(Nutrition))
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue")))
+
+### plot heatmap
+
+#ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminths=c("Present"="Black", "Absent"="Yellow")))
+
+
+top25.bl <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = F )
+
+mat = as.matrix(assay(indata[row.names(top_25_neg_logfc),],"log_counts_cpm"))
+mat = t(scale(t(mat)))
+
+### annotation data for heatmap
+#df=data.frame(Nutrition=colData(indata)$"nutrition", Helminths=colData(indata)$"HELMINTH") 
+### annotation data for heatmap
+df=data.frame(Helminth=colData(indata)$"HELMINTH",
+              Nutrition=colData(indata)$"nutrition",
+              BMI=colData(indata)$"BMI",
+              ID=colData(indata)$"subjid",
+              status=colData(indata)$"status") %>% arrange( BMI)
+mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
+
+df <- df %>% select(c(Nutrition))
+
+ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue")))
+
+neg25.bl <- Heatmap(mat,show_row_names=T,show_column_names = F, top_annotation = ha, cluster_columns = F )
+
+
+
+top25.bl + neg25.bl
+```
+
+#### save
+```{r}
+# save top and bottom 25 by logfc in mal
+write.csv(top_25_logfc, file.path(path, paste0(visit,"mal_vs_well_con_helminth_top25logfc_in_mal.csv")))
+write.csv(top_25_neg_logfc, file.path(path, paste0(visit,"mal_vs_well_con_helminth_lowest25logfc_in_mal.csv")))
+
+```
+
+
+### Volcano Plot
+```{r}
+
 ```
 
 
@@ -2050,7 +2124,7 @@ dev.off()
 #status="all_helminth_effects"
 ```
 
-### significant genes
+### significant 
 ```{r}
 indata <- se
 status <- "all_Helminth_effects"
@@ -4053,7 +4127,7 @@ flux=cbrt(flux)
 
 data("nutrient_lookup_files")
 glucose<-data.frame(glucose=flux[grep("HMR_9034",human_gem$ID),])
-glucose
+glucose 
 ```
 
 ```{r}
