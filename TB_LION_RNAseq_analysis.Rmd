@@ -1804,7 +1804,7 @@ write.csv(sig_limmaResNut, file.path(path, "visit_by_nutrition_interaction_plus_
 mat <- assay(indata, "log_counts_cpm")  # Variance Stabilization
 #mat <- t(scale(t(mat)))  # Variance Stabilization
 
-# Perform PCA on voom-transformed expression
+# Perform PCA on transformed expression
 pca <- prcomp(t(mat), scale.=TRUE)  
 
 # Extract PCA variance explained
@@ -2068,9 +2068,11 @@ dev.off()
 # path to save plots
 outs <- file.path("outs/differential_expression/v1_v_v6/boxplots_selected_genes")
 
+# subset data on malnourished
+indata <- se[,colData(se)$nutrition=="mal"]
 # gene expression matrix
-mat <- assay(se, "log_counts_cpm", withDimnames=T)
-assays(se)
+mat <- assay(indata, "log_counts_cpm", withDimnames=T)
+assays(indata)
 
 # selected genes
 genes <- c("CD248", "C1QA", "SIGLEC1", "SERPING1", "BATF2", "ISG15")
@@ -2081,9 +2083,58 @@ plot.data <- mat[which(rownames(mat) %in% genes),]
 
 ## Boxplot
 ```{r}
-# melt plot.data
+# melt plot.data; need visit, ID, gene, logCPM
+df <- as.data.frame(t(plot.data))
+df.1 <- df %>% 
+               rownames_to_column(var="ID_visit") %>% 
+               mutate(Visit=ifelse(grepl("visit_1", ignore.case = T, ID_visit), "Visit_1", "Visit_6")) %>% 
+               mutate(ID=gsub("_VISIT_1|_VISIT_6", "" ,ID_visit)) %>% 
+               select(-ID_visit)
+melted <- reshape2::melt(df.1, vars=c(ID, Visit, logCPM)) #logCPM is value
+
+ggplot(melted, mapping=aes(x=variable, y=value, fill=Visit)) +
+               geom_boxplot()
 
 ```
+### ggstats boxplots
+```{r}
+library(dlookr) # checks for normality; high p-values indicate normality
+library(car) # checks for variance (leveneTest); low p value is different variances
+library(ggstatsplot) # boxplots with stats
+
+# test for normality with dlookr
+norm.test <- melted %>% 
+               group_by(Visit, variable) %>% 
+               dlookr::normality(value) 
+# non-normal for SIGLEC1, CD248, AND SERPING1, non-parametric
+# variances differ
+d <- melted %>% 
+               group_by(Visit, variable)
+car::leveneTest(value~variable,d) # Pr(>F) < 0.05; variances differ
+
+ggstatsplot::ggbetweenstats(data=melted,
+               x=c(variable, visit),
+               y=value,
+               type="nonparametric", 
+               var.equal=F)
+
+ggstatsplot::grouped_ggwithinstats(
+  data = melted,       # Your data frame
+  x = Visit,  # The grouping variable (e.g., condition)
+  y = value, # The dependent variable (e.g., value)
+  grouping.var = variable,
+  type="nonparametric", 
+  var.equal=F,# The variable for splitting the analysis
+  ylab="logCPM")
+```
+
+#### Save
+```{r}
+ggsave(file.path(outs, "selected_genes_mal_v1_v6.png"), width=7, height=4)
+ggsave(file.path(outs, "selected_genes_mal_v1_v6.svg"), width=7, height=4)
+
+```
+
 
 # Pathway analysis
 ```{r}
