@@ -2130,8 +2130,8 @@ ggstatsplot::grouped_ggwithinstats(
 
 #### Save
 ```{r}
-ggsave(file.path(outs, "selected_genes_mal_v1_v6.png"), width=7, height=4)
-ggsave(file.path(outs, "selected_genes_mal_v1_v6.svg"), width=7, height=4)
+ggsave(file.path(outs, "selected_genes_mal_v1_v6.png"), width=14, height=7)
+ggsave(file.path(outs, "selected_genes_mal_v1_v6.svg"), width=14, height=7)
 
 ```
 
