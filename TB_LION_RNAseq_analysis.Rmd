@@ -901,9 +901,14 @@ g + g1
 
 ### save
 ```{r}
+visit <- "v1_"
 # save significant gene list
 write.csv(sig_limmaResNut, file.path(path, paste0(visit,"mal_vs_well_con_helminth_sig.csv")))
 write.csv(sig_limmaResNut, file.path(ipa, paste0(visit,"mal_vs_well_con_helminth_sig.csv")))
+
+# save top 25 by logFC
+write.csv(top_25_logfc, file.path(path, paste0(visit,"mal_vs_well_con_helminth_top_25_logfc.csv")))
+write.csv(top_25_neg_logfc, file.path(path, paste0(visit,"mal_vs_well_con_helminth_top_25_neg_logfc.csv")))
 
 
 # save plot
@@ -2112,11 +2117,11 @@ d <- melted %>%
                group_by(Visit, variable)
 car::leveneTest(value~variable,d) # Pr(>F) < 0.05; variances differ
 
-ggstatsplot::ggbetweenstats(data=melted,
-               x=c(variable, visit),
-               y=value,
-               type="nonparametric", 
-               var.equal=F)
+# ggstatsplot::ggbetweenstats(data=melted,
+#                x=c(variable, visit),
+#                y=value,
+#                type="nonparametric", 
+#                var.equal=F)
 
 ggstatsplot::grouped_ggwithinstats(
   data = melted,       # Your data frame
