@@ -1757,7 +1757,7 @@ sig_limmaResNut2k <- sig_limmaResNut[1:2000,]
 
 ## Make a Heatmap of all genes
 ### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$adj.P.Val <0.1,]),],"log_counts_cpm"))
+mat = as.matrix(assay(indata[row.names(limmaResNut[limmaResNut$adj.P.Val <0.05,]),],"log_counts_cpm"))
 mat = t(scale(t(mat)))
 
 
@@ -1768,9 +1768,11 @@ df=data.frame(Helminth=colData(indata)$"HELMINTH",
               Visit=colData(indata)$"visit",
               ID1=colData(indata)$"ID1",
               BMI=colData(indata)$"BMI",
-              ID=colData(indata)$"subjid") %>% dplyr::arrange(Visit,status )
+              ID=colData(indata)$"subjid") %>%
+               filter(Nutrition=="mal") %>% 
+               dplyr::arrange(Visit,status )
 
-
+mat <- mat[,df$ID]
 mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
 
 df <- df %>% select(c(status, Visit, BMI))
@@ -1990,80 +1992,6 @@ mat = as.matrix(assay(indata[row.names(sig_limmaResNut),],"log_counts_cpm"))
 
 ```
 
-
-### 2 All genes datatable and heatmap log-log {.tabset}
-```{r }
-# DT::datatable(sig_limmaResNut, 
-#           options=list(scrollX=T,pAGELength=20),
-#           rownames = T)
-
-## Make a Heatmap of all genes
-### gene matrix, scaled across genes (genes as columns)
-mat = as.matrix(assay(se[row.names(sig_limmaResNut),],"log_counts_cpm"))
-
-mat.1 <- as.data.frame(mat) 
-
-n <- colnames(mat.1)
-v1 <- n[grep("VISIT_1", n)] 
-v1 <- gsub("_VISIT_1", "", v1)
-v6 <- n[grep("VISIT_6", n)]
-v6 <- gsub("_VISIT_6", "", v1)
-
-# list of ID
-#ids <- unique(colData(indata)$"ID1")
-# ids <- intersect(v1, v6)
-# m <- sapply(ids, function(x) mat.1[,paste0(x, "_VISIT_6")] - mat.1[,paste0(x, "_VISIT_1")])
-# rownames(m) <- rownames(mat.1)
-# 
-# ### annotation data for heatmap
-# df=data.frame(Helminth=colData(indata)$"HELMINTH",
-#               Nutrition=colData(indata)$"nutrition",
-#               Visit=colData(indata)$"visit",
-#               ID1=colData(indata)$"ID1",
-#               BMI=colData(indata)$"BMI",
-#               ID=colData(indata)$"subjid") %>% dplyr::arrange(BMI, Visit, Nutrition, ID1)
-# 
-# mat = t(scale(t(mat)))
-# mat <- as.matrix(relocate(as.data.frame(mat), df$ID))
-# 
-# df <- df %>% select(c(Helminth, BMI, Nutrition))
-# 
-# 
-# # remove ID from annotation
-# #df$ID <- NULL
-# 
-# ha = HeatmapAnnotation(df = df, col = list(Nutrition=c("mal"="Red","well"="Blue"), Helminth=c("Present"="Black", "Absent"="Yellow")))
-# g <- Heatmap(mat, show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = T, use_raster = T )
-# g1 <- Heatmap(mat, show_row_names=F,show_column_names = F, top_annotation = ha, cluster_columns = F, use_raster = T )
-# g + g1
-
-
-```
-
-
-```{r}
-## save genes
-# write.csv(sig_limmaResNut, file.path(path, paste0(diffex_test,"_",status,"_sig.csv")))
-# write.csv(sig_limmaResNut, file.path(ipa, paste0(diffex_test,"_",status,"_sig.csv")))
-
-
-# save plot
-svg(file.path(path, paste0(status,"_log-log_sig.svg")), width=7, height=7)
-g
-dev.off()
-png(file.path(path, paste0(status,"_log-log_sig.png")), width=700, height=700)
-g
-dev.off()
-
-# save plot
-svg(file.path(path, paste0(status,"_ordered_log-log_sig.svg")), width=7, height=7)
-g1
-dev.off()
-png(file.path(path, paste0(status,"_ordered_log-log_sig.png")), width=700, height=700)
-g1
-dev.off()
-
-```
 
 
 
